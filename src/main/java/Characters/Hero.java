@@ -4,6 +4,10 @@ import Inventory.Spell;
 import Inventory.Treasure;
 import Inventory.Weapon;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
 public class Hero extends CharImpl{
     private Level level;
     private Backpack backpack;
@@ -114,4 +118,8 @@ public class Hero extends CharImpl{
     public int giveExperiencePointsAfterBattle() {
         return level.getExperience();
     }
+
+
+
+
 }

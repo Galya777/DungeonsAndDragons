@@ -3,6 +3,8 @@ import Inventory.Spell;
 import Inventory.Weapon;
 
 import java.awt.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
 
 public interface Character {
 
@@ -32,5 +34,6 @@ public interface Character {
 
         String getFormattedName();
 
+        void writeHero(DataOutputStream out) throws IOException;
 
 }

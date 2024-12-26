@@ -5,6 +5,8 @@ import Inventory.Weapon;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
 
 public class CharImpl implements Character {
     private static final int NO_ATTACK_POINTS = 0;
@@ -100,7 +102,14 @@ public class CharImpl implements Character {
 
         return attack;
     }
-
+    public void writeHero(DataOutputStream out) throws IOException {
+        // Write key fields to the output stream
+        out.writeUTF(this.getName());                     // Write name
+        out.writeInt(this.getStats().getHealth());        // Write health
+        out.writeInt(this.getStats().getMana());          // Write mana
+        out.writeInt(this.getPosition().getRow());        // Write position row
+        out.writeInt(this.getPosition().getCol());        // Write position column
+    }
     @Override
     public String getFormattedName() {
         return name + " <" + id + ">";

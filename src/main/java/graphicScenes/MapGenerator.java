@@ -21,12 +21,14 @@ public class MapGenerator extends JPanel {
     private Image wallImage; // Wall image
     private Image pathImage; // Path image
     private Image enemyImage, treasureImage;
+    private Hero hero; // Hero to be displayed on the map
+    private Image heroImage; // Hero image
 
     private ArrayList<Minion> enemies;
     private ArrayList<Treasure> treasures;
     private Set<Position> freePositions;
 
-    public MapGenerator(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions) {
+    public MapGenerator(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions, Hero hero) {
         if (map == null || enemies == null || treasures == null || freePositions == null) {
             throw new IllegalArgumentException("Invalid arguments provided to MapGenerator.");
         }
@@ -35,7 +37,15 @@ public class MapGenerator extends JPanel {
         this.enemies = enemies;
         this.treasures = treasures;
         this.freePositions = freePositions;
+        this.hero = hero; // Set the hero
 
+        if (hero != null) {
+            Position startPosition = getRandomFreePosition(new Random()); // Get a random free position
+            if (startPosition != null) {
+                hero.setPosition(startPosition.getRow(), startPosition.getCol()); // Update the hero's position
+                map[startPosition.getRow()][startPosition.getCol()] = "H"; // Place the hero on the map
+            }
+        }
         initializeImages();
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
     }
@@ -45,6 +55,7 @@ public class MapGenerator extends JPanel {
         this.enemies = new ArrayList<>();
         this.treasures = new ArrayList<>();
         this.freePositions = new HashSet<>();
+        this.hero=null;
 
         initializeImages();
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
@@ -57,6 +68,7 @@ public class MapGenerator extends JPanel {
         pathImage = new ImageIcon("images/empty.png").getImage();
         enemyImage = new ImageIcon("images/minion.png").getImage();
         treasureImage = new ImageIcon("images/treasure.png").getImage();
+        heroImage = new ImageIcon("images/mainChar2.png").getImage();
     }
 
     public String[][] getMap() {
@@ -134,7 +146,19 @@ public class MapGenerator extends JPanel {
         updateNewTreasureAtPosition(treasure, row, col, stayingHeroId);
 
     }
-
+    public void setHeroPosition(Position heroPosition) {
+        if (heroPosition == null) {
+            throw new IllegalArgumentException("Hero position cannot be null.");
+        }
+        int row = heroPosition.getRow();
+        int col = heroPosition.getCol();
+        if (map[row][col].equals("#")) {
+            throw new IllegalArgumentException("Cannot place hero on a wall.");
+        }
+        map[row][col] = "H"; // Mark the position with the hero's identifier
+        freePositions.remove(heroPosition); // Remove this position from free positions
+        repaint(); // Refresh the map display
+    }
     public void updateDeadMinionAtPosition(Position position, String update) {
         Position newPosition = getFreePosition();
         if (newPosition == null) {
@@ -189,7 +213,7 @@ public class MapGenerator extends JPanel {
         };
     }
 
-    private Position getRandomFreePosition(Random random) {
+    public Position getRandomFreePosition(Random random) {
         if (freePositions.isEmpty()) {
             return null;
         }
@@ -220,6 +244,7 @@ public class MapGenerator extends JPanel {
         placeEnemies(10, random);
         placeTreasure(20, random);
 
+
         repaint();
     }
 
@@ -247,13 +272,17 @@ public class MapGenerator extends JPanel {
         for (Treasure treasure : treasures) {
             g.drawImage(treasureImage, treasure.getPosition().getCol() * CELL_SIZE, treasure.getPosition().getRow() * CELL_SIZE, CELL_SIZE, CELL_SIZE, this);
         }
+        // Draw the hero
+        if (hero != null) {
+            g.drawImage(heroImage, hero.getPosition().getCol() * CELL_SIZE, hero.getPosition().getRow() * CELL_SIZE, CELL_SIZE, CELL_SIZE, this);
+        }
     }
 
-    public static MapGenerator createNewGameRepository(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions) {
+    public static MapGenerator createNewGameRepository(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions, Hero hero) {
         if (map == null || enemies.isEmpty() || treasures.isEmpty() || freePositions == null) {
             throw new IllegalArgumentException("Invalid arguments provided to createNewGameRepository.");
         }
-        return new MapGenerator(map, enemies, treasures, freePositions);
+        return new MapGenerator(map, enemies, treasures, freePositions, hero);
     }
 
     public void updateNewTreasureAtPosition(Treasure treasure, int row, int col, String heroId) {
@@ -333,5 +362,36 @@ public class MapGenerator extends JPanel {
 
         repaint(); // Refresh the map display
     }
+    public void setHero(Hero hero) {
+        if (hero == null) {
+            throw new IllegalArgumentException("Hero cannot be null.");
+        }
 
+        this.hero = hero; // Set the new hero
+        Position startPosition = getRandomFreePosition(new Random()); // Get a random free position
+        if (startPosition != null) {
+            hero.setPosition(startPosition.getRow(), startPosition.getCol()); // Update the hero's position
+            map[startPosition.getRow()][startPosition.getCol()] = "H"; // Place the hero on the map
+        }
+
+        repaint(); // Redraw the map
+    }
+    public Position getRandomFreePosition() {
+        List<Position> freePositions = new ArrayList<>();
+        for (int row = 0; row < map.length; row++) {
+            for (int col = 0; col < map[row].length; col++) {
+                if (Objects.equals(map[row][col], ".")) { // Assuming null indicates a free spot
+                    freePositions.add(new Position(row, col));
+                }
+            }
+        }
+
+        if (freePositions.isEmpty()) {
+            return null; // No free positions available
+        }
+
+        // Pick a random free position
+        Random random = new Random();
+        return freePositions.get(random.nextInt(freePositions.size()));
+    }
 }

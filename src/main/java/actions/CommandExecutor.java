@@ -16,7 +16,7 @@ public class CommandExecutor {
     private static final String YOU_ARE_NOT_REGISTERED_MESSAGE = "You are not registered yet.";
     private static final String COMMAND_DELIMITER = " ";
 
-    private PlayerRepository playerRepository;
+    PlayerRepository playerRepository;
     private MapGenerator MapGenerator;
 
     public CommandExecutor(MapGenerator MapGenerator) {
@@ -24,8 +24,20 @@ public class CommandExecutor {
         this.MapGenerator = MapGenerator;
     }
 
-    private Command determineCommand(String[] splitCommand, CommandType firstCommandAsEnum, SocketChannel socketChannel) {
+    Command determineCommand(String[] splitCommand, CommandType firstCommandAsEnum, SocketChannel socketChannel) {
+
+        // Check if user is registered
+        if (!playerRepository.isUserRegistered(socketChannel)) {
+            throw new IllegalStateException(YOU_ARE_NOT_REGISTERED_MESSAGE); // Fail fast if the user isn't registered
+        }
+
         Hero hero = playerRepository.getHeroByGivenSocketChannel(socketChannel);
+
+        // Ensure Hero is not null
+        if (hero == null) {
+            throw new IllegalStateException("Hero is null for SocketChannel: " + socketChannel);
+        }
+
         switch (firstCommandAsEnum) {
             case BACKPACK:
                 return new BackpackCommand(hero, splitCommand, MapGenerator);
@@ -43,7 +55,10 @@ public class CommandExecutor {
     public String checkCommandForRepositoryUpdate(String[] splitCommand, CommandType firstCommandAsEnum,
                                                   SocketChannel socketChannel) {
         if (firstCommandAsEnum.equals(CommandType.PLAY) && splitCommand.length == PLAY_COMMAND_LENGTH) {
-            return playerRepository.registerUser(socketChannel, splitCommand[SECOND_WORD], MapGenerator);
+            String registrationResult = playerRepository.registerUser(socketChannel, splitCommand[SECOND_WORD], MapGenerator);
+            if (registrationResult != null) {
+                return registrationResult;
+            }
         }
 
         if (!playerRepository.isUserRegistered(socketChannel)) {
@@ -72,21 +87,36 @@ public class CommandExecutor {
     }
 
     public String executeCommand(String command, SocketChannel socketChannel, UserRecipient userRecipient) {
-        String[] splitCommand = command.trim().split(COMMAND_DELIMITER);
-        CommandType firstCommandAsEnum = CommandType.getCommandAsEnum(splitCommand[ZERO_WORD]);
-        if (firstCommandAsEnum == null) {
-            return Command.UNSUPPORTED_OPERATION_MESSAGE;
-        }
+        synchronized (playerRepository) { // Prevent race conditions
+            String[] splitCommand = command.split(COMMAND_DELIMITER);
 
-        String updateResult = checkCommandForRepositoryUpdate(splitCommand, firstCommandAsEnum, socketChannel);
-        if (updateResult != null) {
-            return updateResult;
-        }
+            userRecipient.setSocketChannel(socketChannel);
+            userRecipient.setMessage(null);
 
-        Command specificCommand = determineCommand(splitCommand, firstCommandAsEnum, socketChannel);
-        String commandResult = (specificCommand != null) ? specificCommand.execute(userRecipient)
-                : Command.UNSUPPORTED_OPERATION_MESSAGE;
-        return checkCommandResultForRepositoryUpdate(commandResult, socketChannel, userRecipient);
+            CommandType firstCommandAsEnum;
+            try {
+                firstCommandAsEnum = CommandType.valueOf(splitCommand[ZERO_WORD].toUpperCase());
+            } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                return "Error: Invalid or unknown command.";
+            }
+
+            if (firstCommandAsEnum.equals(CommandType.PLAY)) {
+                String repositoryUpdateResult = checkCommandForRepositoryUpdate(splitCommand, firstCommandAsEnum, socketChannel);
+                return repositoryUpdateResult; // Ensure PLAY command response is sent immediately
+            }
+            String repositoryUpdateResult = checkCommandForRepositoryUpdate(splitCommand, firstCommandAsEnum, socketChannel);
+            if (repositoryUpdateResult != null) {
+                return repositoryUpdateResult;
+            }
+
+            Hero hero = playerRepository.getHeroByGivenSocketChannel(socketChannel);
+            if (hero == null) {
+                return "Error: No hero linked to your session. Please register or try again.";
+            }
+
+            Command determinedCommand = determineCommand(splitCommand, firstCommandAsEnum, socketChannel);
+            return checkCommandResultForRepositoryUpdate(determinedCommand.execute(userRecipient), socketChannel, userRecipient);
+        }
     }
 
     public Collection<SocketChannel> getSocketChannelsFromRepository() {
@@ -97,3 +127,4 @@ public class CommandExecutor {
         return Arrays.deepToString(MapGenerator.getMap());
     }
 }
+

@@ -15,19 +15,19 @@ import java.util.Optional;
 public class BattleCommand extends CommandImpl {
 
     private static final String NO_MINION_AT_POSITION_MESSAGE = "There is no minion to battle here.";
-    private static final String NO_PLAYER_AT_POSITION_MESSAGE = "There is no player to battle here.";
-    private static final String HERO_WON_MESSAGE = "The enemy is dead. You won. ";
+    static final String NO_PLAYER_AT_POSITION_MESSAGE = "There is no player to battle here.";
+    public static final String HERO_WON_MESSAGE = "The enemy is dead. You won. ";
     static final String HERO_LOST_MESSAGE = "You died. Enemy wins. ";
     static final String KILLED_YOU_MESSAGE = " killed you. ";
     static final String BATTLE_DRAW_MESSAGE = "'s battle with you ended with a draw.";
-    private static final String YOU_KILLED_MESSAGE = "You killed ";
-    private static final String DRAW_MESSAGE = "Battle ended with a draw.";
+    public static final String YOU_KILLED_MESSAGE = "You killed ";
+    static final String DRAW_MESSAGE = "Battle ended with a draw.";
 
     private static final int MAX_BATTLE_ROUNDS = 10;
 
     private PlayerRepository playerRepository;
     private MapGenerator gameRepository;
-    private boolean isDraw;
+    boolean isDraw;
 
     BattleCommand(Hero hero, String[] splitCommand, PlayerRepository playerRepositroy, MapGenerator gameRepository) {
         super(hero, splitCommand);

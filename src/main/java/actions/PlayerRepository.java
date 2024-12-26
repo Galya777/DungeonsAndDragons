@@ -37,7 +37,11 @@ public class PlayerRepository {
     }
 
     public Hero getHeroByGivenSocketChannel(SocketChannel socketChannel) {
-        return heroBySocketChannel.get(socketChannel);
+        Hero hero = heroBySocketChannel.get(socketChannel);
+        if (hero == null) {
+            System.err.println("No Hero found for SocketChannel: " + socketChannel);
+        }
+        return hero;
     }
 
     public Map<SocketChannel, Hero> getHeroBySocketChannel() {
@@ -67,6 +71,7 @@ public class PlayerRepository {
         String playerId = freeUserIds.poll();
         Position position = mapGenerator.getFreePosition();
         Character newHero = Factory.getActor(CharType.HERO, username, playerId, position);
+        addHeroForSocket(socketChannel, (Hero) newHero);
         mapGenerator.setContentAtPosition(position, playerId);
         heroBySocketChannel.put(socketChannel, (Hero) newHero);
         numberOfActivePlayers++;
@@ -92,6 +97,11 @@ public class PlayerRepository {
     public String removeUser(SocketChannel socketChannel, MapGenerator mapGenerator) {
         Hero userToBeRemoved = heroBySocketChannel.get(socketChannel);
         return updateRepository(userToBeRemoved, mapGenerator);
+    }
+
+    public void addHeroForSocket(SocketChannel socketChannel, Hero hero) {
+            heroBySocketChannel.put(socketChannel, hero); // Store mapping in your existing HashMap
+            System.out.println("Hero added for SocketChannel: " + socketChannel);
     }
 
     public String updateRepository(Hero userToBeRemoved, MapGenerator mapGenerator) {

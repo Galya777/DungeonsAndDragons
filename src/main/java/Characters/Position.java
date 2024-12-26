@@ -69,4 +69,9 @@ public class Position {
         return new Position(row, col);
     }
 
+    @Override
+public String toString() {
+    return row + "," + col;
 }
+}
+
