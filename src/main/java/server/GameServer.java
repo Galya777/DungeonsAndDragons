@@ -95,15 +95,19 @@ public class GameServer {
                 return;
             }
 
-            // Construct the success message
-            String responseMessage = "Hero registered: " + heroName;
+            // Generate fake position (x, y) for the hero
+            int x = new Random().nextInt(100); // Example, replace with actual logic
+            int y = new Random().nextInt(100);
+
+            // Construct the client’s expected response format
+            String responseMessage = "REGISTERED:HERO_AT(" + x + "," + y + ")";
 
             // Send the message back to the client
             DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream());
             out.writeUTF(responseMessage);
             out.flush();
 
-            System.out.println("Sent to client: " + responseMessage); // Debug confirmation
+            System.out.println("Sent to client: " + responseMessage);
         } catch (IOException e) {
             LOGGER.warning("Failed to register hero: " + e.getMessage());
         }
@@ -161,11 +165,28 @@ public class GameServer {
                      DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream())) {
 
                     LOGGER.info("New client connected: " + socketChannel.getRemoteAddress());
-                    String heroName = in.readUTF(); // Assume hero name is sent first by the client
-                    registerHero(socketChannel, heroName);
+                    String request = in.readUTF();
+
+                    if (request.startsWith("Reconnect Request:")) {
+                        String heroName = request.substring("Reconnect Request:".length()).trim();
+                        LOGGER.info("Processing reconnection for hero: " + heroName);
+
+                        // Optionally verify if the hero exists in the repository
+                        if (playerRepository.isHeroRegistered(heroName)) {
+                            LOGGER.info("Reconnection approved for: " + heroName);
+                            out.writeUTF("RECONNECTED:HERO"); // Inform the client of success
+                        } else {
+                            LOGGER.warning("Reconnection failed: Hero not found.");
+                            out.writeUTF("RECONNECT_FAILED:HERO_NOT_FOUND");
+                        }
+
+                    } else {
+                        // Normal new registration
+                        registerHero(socketChannel, request.trim());
+                    }
 
                 } catch (IOException e) {
-                    LOGGER.log(Level.SEVERE, "Error during Hero registration via acceptFromKey", e);
+                    LOGGER.log(Level.SEVERE, "Error during client communication", e);
                 }
             }
         } catch (IOException e) {

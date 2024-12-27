@@ -12,6 +12,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.net.InetSocketAddress;
+import java.util.Random;
 
 public class GameClient {
     private static final String SERVER_HOST = "localhost";
@@ -40,129 +41,172 @@ public class GameClient {
             String response = in.readUTF();
             System.out.println("Server response: " + response);
 
-            if (response.startsWith("REGISTERED:HERO_AT")) {
-                try {
-                    // Parse the position from the response (e.g., REGISTERED:HERO_AT(x,y))
-                    String positionData = response.substring(response.indexOf('(') + 1, response.indexOf(')'));
-                    String[] position = positionData.split(",");
-                    int x = Integer.parseInt(position[0].trim());
-                    int y = Integer.parseInt(position[1].trim());
+            if (response.startsWith("REGISTERED:HERO_AT(")) {
+                System.out.println("Processing registration response...");
 
-                    // Create the hero with the given position
-                    Hero hero = new Hero(username, "Client-HERO-1", new Position(x, y), "images/mainChar2.png");
-                    System.out.println("Hero initialized: " + hero);
+                // Extract hero's position
+                String coordinates = response.substring("REGISTERED:HERO_AT(".length(), response.length() - 1);
+                String[] xy = coordinates.split(",");
+                int x = Integer.parseInt(xy[0].trim());
+                int y = Integer.parseInt(xy[1].trim());
 
-                    // Set up the MapGenerator with the hero
-                    MapGenerator mapGenerator = new MapGenerator();
-                    mapGenerator.setHero(hero);
+                // Create Hero object
+                Hero hero = new Hero(username, "DefaultHero", new Position(x, y), "images/mainChar2.png");
+                System.out.println("Hero created: " + hero);
 
-                    // Pass everything to your GUI
-                    final SocketChannel finalSocketChannel = socketChannel;
-                    final DataInputStream finalIn = in;
-                    final DataOutputStream finalOut = out;
-                    SwingUtilities.invokeLater(() -> {
-                        try {
-                            createAndShowGUI(finalSocketChannel, finalIn, finalOut, mapGenerator);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
-                } catch (Exception e) {
-                    System.err.println("Failed to parse server response: " + response);
-                    e.printStackTrace();
-                }
+                // Initialize MapGenerator with Hero
+                MapGenerator mapGenerator = new MapGenerator();
+                mapGenerator.setHero(hero);
+
+                // Call GUI creation on the event dispatch thread
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        createAndShowGUI(socketChannel, in, out, mapGenerator);
+                        System.out.println("GUI initialized successfully.");
+                    } catch (IOException e) {
+                        System.err.println("Error during GUI creation: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                });
             } else {
                 System.err.println("Unexpected server response: " + response);
             }
+
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Failed to connect to the server: " + e.getMessage());
         }
     }
     private boolean isConnectionValid(SocketChannel channel) {
         return channel != null && channel.isOpen() && channel.isConnected();
     }
-    private void handleConnectionLoss() {
-        System.err.println("Connection lost! Restart or check the server.");
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(null, "Connection lost! The game will now close.");
-            System.exit(1); // Exit if the connection is lost
-        });
-    }
-    private void createAndShowGUI(SocketChannel socketChannel, DataInputStream in, DataOutputStream out, MapGenerator mapGenerator) throws IOException {
-        JFrame frame = new JFrame();
-        frame.setTitle("Dungeons");
-        ImageIcon icon = new ImageIcon("logo.jpg");
-        frame.setIconImage(icon.getImage());
-        frame.getContentPane().setBackground(Color.BLACK);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(2000, 2000);
+    private void handleConnectionLoss(SocketChannel oldSocketChannel, MapGenerator mapGenerator) {
+        System.err.println("Connection lost! Attempting to reconnect...");
 
-        // Ensure the hero is properly initialized before starting the map
-        if (mapGenerator.getHero() == null) {
-            throw new IllegalStateException("Hero is null during GUI initialization.");
+        // Note: Close the old socketChannel if it's still open
+        try {
+            if (oldSocketChannel != null && oldSocketChannel.isOpen()) {
+                System.out.println("Closing old socket connection...");
+                oldSocketChannel.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to close old connection: " + e.getMessage());
         }
 
-        frame.add(mapGenerator, BorderLayout.CENTER);
+        // Start a reconnection loop
+        new Thread(() -> {
+            boolean reconnected = false;
+            SocketChannel socketChannel = null;
 
+            while (!reconnected) {
+                try {
+                    System.out.println("Attempting to reconnect to server...");
+                    // Create a new connection
+                    socketChannel = SocketChannel.open();
+                    socketChannel.configureBlocking(true);
+                    socketChannel.connect(new InetSocketAddress(SERVER_HOST, SERVER_PORT));
+
+                    System.out.println("Reconnection successful!");
+
+                    // Re-initialize the I/O streams
+                    DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
+                    DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream());
+
+                    // Send the username back to the server
+                    out.writeUTF("Reconnect Request: " + mapGenerator.getHero().getName());
+                    out.flush();
+
+                    // Read and process the server's response
+                    String response = in.readUTF();
+                    System.out.println("Server response after reconnection: " + response);
+
+                    // Resume listening for updates
+                    listenForServerUpdates(socketChannel, mapGenerator);
+
+                    // Exit reconnection loop now that connection is restored
+                    reconnected = true;
+
+                } catch (IOException e) {
+                    System.err.println("Reconnection failed: " + e.getMessage());
+                    System.out.println("Retrying in 3 seconds...");
+                    try {
+                        Thread.sleep(3000); // Wait 3 seconds before retrying
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        }).start();
+    }
+    private void createAndShowGUI(SocketChannel socketChannel, DataInputStream in, DataOutputStream out,
+                                  MapGenerator mapGenerator) throws IOException {
+        JFrame frame = new JFrame("Dungeons");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+        frame.setLayout(new BorderLayout());
+
+        // Hero initialization check
+        if (mapGenerator.getHero() == null) {
+            throw new IllegalStateException("Hero is missing! Cannot initialize GUI.");
+        }
+
+        // Add components
+        frame.add(mapGenerator, BorderLayout.CENTER);
         ActionsPanel actionsPanel = new ActionsPanel(
                 mapGenerator.getHero(), mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
         frame.add(actionsPanel, BorderLayout.SOUTH);
 
+        // Force GUI rendering
         frame.setVisible(true);
+        frame.revalidate(); // Ensure layout updates
+        frame.repaint();    // Refresh components
 
-        // Start listening for updates from the server
+        // Start server updates in a separate thread
         new Thread(() -> listenForServerUpdates(socketChannel, mapGenerator)).start();
     }
-
     private void listenForServerUpdates(SocketChannel socketChannel, MapGenerator mapGenerator) {
         try {
             DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    // Validate the connection before attempting to read
-                    if (!isConnectionValid(socketChannel)) {
-                        System.err.println("Connection invalid. Stopping listener...");
-                        handleConnectionLoss();
-                        return; // Exit the thread
-                    }
-
-                    // Proceed with reading if the connection is valid
                     if (in.available() > 0) {
                         String serverMessage = in.readUTF();
-                        System.out.println("Server update: " + serverMessage);
-                        processMessage(serverMessage, mapGenerator);
+                        System.out.println("Server update received: " + serverMessage);
+
+                        // Process server messages on the EDT
+                        SwingUtilities.invokeLater(() -> processMessage(serverMessage, mapGenerator));
                     }
-                } catch (EOFException e) {
-                    System.err.println("EOF reached. Server likely closed the connection.");
-                    handleConnectionLoss();
-                    return; // Exit on EOFException
+                } catch (IOException e) { // Handle connection loss during reading
+                    System.err.println("Error during server communication: " + e.getMessage());
+                    handleConnectionLoss(socketChannel, mapGenerator);
+                    break;
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
-            handleConnectionLoss();
+            System.err.println("Failed to listen for server updates: " + e.getMessage());
+            handleConnectionLoss(socketChannel, mapGenerator);
         }
     }
     private void processMessage(String serverMessage, MapGenerator mapGenerator) {
-        // Handle "Hero registered: [HeroName]" response
+        // Normalize and trim the message
+        serverMessage = serverMessage.trim();
+
+        // Handle "Hero registered" responses
         if (serverMessage.startsWith("Hero registered:")) {
-            // Extract and print the hero’s name
+            // Extract the hero's name from the message
             String heroName = serverMessage.substring("Hero registered:".length()).trim();
+
+            // Log success and exit
             System.out.println("Hero successfully registered: " + heroName);
-
-            // Exit here as we already processed the message
             return;
         }
 
-        // Add handling for other common server messages
-        // For example, MAP_UPDATE or other commands can also be parsed here
+        // Optionally handle other known server message types
         if (serverMessage.startsWith("MAP_UPDATE")) {
-            // Example placeholder handling for map updates
-            System.out.println("Map update received from server: " + serverMessage);
+            // Process map update logic here
+            System.out.println("Received map update from server: " + serverMessage);
             return;
         }
 
-        // If no known patterns match, log it as an unexpected response
+        // Unknown or unhandled responses
         System.err.println("Unexpected server response: " + serverMessage);
     }
     private void updateEnemyPositionsOnMap(String enemyData, MapGenerator mapGenerator) {

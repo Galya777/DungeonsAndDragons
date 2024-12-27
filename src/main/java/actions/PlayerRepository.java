@@ -118,4 +118,8 @@ public class PlayerRepository {
         mapGenerator.updateDeadHeroAtPosition(positionToBeFreed, idToBeFreed, treasure);
         return userToBeRemoved.getFormattedName() + USER_DEAD_MESSAGE;
     }
+
+    public boolean isHeroRegistered(String heroName) {
+        return heroBySocketChannel.values().stream().anyMatch(hero -> hero.getName().equals(heroName));
+    }
 }
