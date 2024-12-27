@@ -8,6 +8,8 @@ import Inventory.Weapon;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.List;
 import java.util.Timer;
@@ -51,7 +53,6 @@ public class MapGenerator extends JPanel {
         }
         initializeImages();
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
-        startEnemyMovement();
     }
 
     public MapGenerator() {
@@ -65,7 +66,7 @@ public class MapGenerator extends JPanel {
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
 
         generateRandomMap();
-        startEnemyMovement();
+
     }
 
     private void initializeImages() {
@@ -95,7 +96,14 @@ public class MapGenerator extends JPanel {
     public Minion getMinionAtPosition(Position position) {
         return enemies.stream().filter(minion -> minion.getPosition().equals(position)).findFirst().orElse(null);
     }
-
+    public List<Position> getEnemyPositions() {
+        //Return a list of enemy positions
+        List<Position> enemyPositions = new ArrayList<>();
+        for (Minion enemy : enemies) {
+            enemyPositions.add(enemy.getPosition());
+        }
+        return enemyPositions;
+    }
     public Treasure getTreasureAtPosition(Position position) {
         return treasures.stream().filter(treasure -> treasure.getPosition().equals(position)).findFirst().orElse(null);
     }
@@ -124,7 +132,19 @@ public class MapGenerator extends JPanel {
         freePositions.remove(freePosition);
         return freePosition;
     }
+    public synchronized void updateMap(String fullMap) {
+        // Parse the map rows from the `fullMap` string
+        String[] rows = fullMap.split("\n");
+        for (int i = 0; i < ROWS && i < rows.length; i++) {
+            String row = rows[i];
+            for (int j = 0; j < COLS && j < row.length(); j++) {
+                char cell = row.charAt(j);
+                map[i][j] = String.valueOf(cell); // Update the map cell
+            }
+        }
 
+        repaint(); // Redraw the map
+    }
     public void removeFreePosition(Position position) {
         freePositions.remove(position);
     }
@@ -324,7 +344,7 @@ public class MapGenerator extends JPanel {
             throw new IllegalArgumentException("Invalid arguments provided to createNewGameRepository.");
         }
         MapGenerator mapGenerator = new MapGenerator(map, enemies, treasures, freePositions, hero);
-        mapGenerator.startEnemyMovement(); // Start the enemy movement timer for the new game
+        //mapGenerator.startEnemyMovement(); // Start the enemy movement timer for the new game
         return mapGenerator;
     }
 
@@ -487,7 +507,7 @@ public class MapGenerator extends JPanel {
         }
         // Removed direct enemy movement calls from `PlayerMoving`
     }
-    public synchronized void moveEnemies() {
+    public synchronized void moveEnemies(DataOutputStream out) {
         Random random = new Random();
         List<Minion> toRemove = new ArrayList<>(); // Track minions to remove
 
@@ -548,23 +568,47 @@ public class MapGenerator extends JPanel {
             System.out.println("Minion killed at position: " + pos);
         }
 
+        // **NEW CODE: Broadcast the updated enemy positions to clients**
+        sendEnemyPositionsToClients(out);
+
         repaint(); // Refresh the map display to show enemy movements
     }
-        public void startEnemyMovement () {
-            enemyTimer = new Timer(true); // Daemon timer to automatically stop with the program
-            enemyTimer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    try {
-                        System.out.println("Moving enemies..."); // Debug statement
-                        moveEnemies();
-                    } catch (Exception e) {
-                        System.err.println("Error in enemy movement: " + e.getMessage());
-                        e.printStackTrace(); // Debug stack trace
-                    }
-                }
-            }, 0, ENEMY_MOVE_INTERVAL); // Run immediately and then every 2 seconds
+
+    private void sendEnemyPositionsToClients(DataOutputStream out) {
+        try {
+            StringBuilder enemyPositions = new StringBuilder();
+
+            // Gather all enemy positions
+            for (Minion enemy : enemies) {
+                Position pos = enemy.getPosition();
+                enemyPositions.append(pos.getRow()).append(",").append(pos.getCol()).append(";");
+            }
+
+            // Send the positions as a single message
+            out.writeUTF("ENEMY_POSITIONS " + enemyPositions.toString());
+            out.flush();
+
+            System.out.println("Broadcast enemy positions: " + enemyPositions);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Failed to send enemy positions to client.");
         }
+    }
+    public void startEnemyMovement(DataOutputStream out) {
+        enemyTimer = new Timer(true); // Daemon thread to ensure automatic shutdown
+        enemyTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    System.out.println("Moving enemies...");
+                    moveEnemies(out); // Pass the DataOutputStream to broadcast updates
+                } catch (Exception e) {
+                    System.err.println("Error in enemy movement: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        }, 0, ENEMY_MOVE_INTERVAL); // Execute immediately, repeat every interval
+    }
 
     public synchronized void stopEnemyMovement() {
         if (enemyTimer != null) {

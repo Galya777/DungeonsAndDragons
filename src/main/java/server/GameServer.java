@@ -9,8 +9,6 @@ import graphicScenes.MapGenerator;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
@@ -24,42 +22,33 @@ public class GameServer {
     public static final int SERVER_PORT = System.getenv("SERVER_PORT") != null ? Integer.parseInt(System.getenv("SERVER_PORT")) : 8080;
     private static final int BUFFER_SIZE = 1024;
 
-    private static final String PROBLEM_OPENING_RESOURCES_MESSAGE = "Problem with opening resources.";
-    private static final String PROBLEM_INTERRUPTED_THREAD_MESSAGE = "Server thread was interrupted.";
-    private static final String PROBLEM_ACCEPT_MESSAGE = "Problem occurred while accepting a connection.";
-    private static final String NOTHING_TO_READ_CLOSING_CHANNEL_MESSAGE = "Nothing to read, closing channel.";
-    private static final String PROBLEM_SELECTING_KEYS_MESSAGE = "Problem occurred while selecting keys.";
-    private static final String PROBLEM_READING_FROM_CHANNEL_MESSAGE = "Problem occurred while reading from channel.";
-    private static final String PROBLEM_CLOSING_CHANNEL_MESSAGE = "Problem occurred while closing channel.";
-    private static final String PROBLEM_WRITING_TO_CHANNEL_MESSAGE = "Problem occurred while writing to channel.";
-
     private static final Logger LOGGER = Logger.getLogger(GameServer.class.getName());
 
     private CommandExecutor commandExecutor;
     private ServerSocketChannel serverSocketChannel;
     private Selector selector;
     private ByteBuffer buffer;
-    private ExecutorService executorService;
+    private ExecutorService executorService = Executors.newFixedThreadPool(10);
     private PlayerRepository playerRepository;
     private MapGenerator mapGenerator;
 
+    private boolean enemyMovementStarted = false; // Track if enemy movement has started
+
+    private static int nextHeroId = 1; // Static counter for unique IDs
+
+    private boolean running = true; // Server running state
+
     private GameServer(MapGenerator gameRepository) {
+        this.executorService = Executors.newFixedThreadPool(10);
         this.mapGenerator = gameRepository;
         this.commandExecutor = new CommandExecutor(gameRepository);
         this.playerRepository = new PlayerRepository();
-        startEnemyMovementIfNeeded(); // Start enemies if needed
-// Initialize the executor service for multithreading
-        executorService = Executors.newCachedThreadPool();
 
-// Now perform other operations, such as broadcasting map updates
-        broadcastMapUpdates();
-        // Open resources for the server
+        // Broadcast updates and open resources
+        broadcastMapUpdates(String.valueOf(mapGenerator));
         openResources();
 
-        // Initialize the executor service for multithreading
-        executorService = Executors.newCachedThreadPool();
-
-        // Add the shutdown hook after resources are opened
+        // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 if (serverSocketChannel != null && serverSocketChannel.isOpen()) {
@@ -73,19 +62,11 @@ public class GameServer {
                 LOGGER.log(Level.SEVERE, "Error during shutdown", e);
             }
 
-            // Shut down the executor service
+            // Shutdown executorService
             executorService.shutdown();
         }));
     }
-    private boolean enemyMovementStarted = false;
 
-    private synchronized void startEnemyMovementIfNeeded() {
-        if (!enemyMovementStarted) {
-            mapGenerator.startEnemyMovement(); // Start enemy movement
-            enemyMovementStarted = true;
-            LOGGER.info("Enemy movements started.");
-        }
-    }
     private void openResources() {
         try {
             // Open and configure the server socket channel
@@ -102,101 +83,164 @@ public class GameServer {
             buffer = ByteBuffer.allocate(BUFFER_SIZE);
 
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, PROBLEM_OPENING_RESOURCES_MESSAGE, e);
-            throw new RuntimeException(PROBLEM_OPENING_RESOURCES_MESSAGE, e);
+            LOGGER.log(Level.SEVERE, "Problem with opening resources.", e);
+            throw new RuntimeException("Problem with opening resources.", e);
         }
     }
-    private static int nextHeroId = 1; // Static counter for unique IDs
 
-    private void registerHero(DataInputStream in, DataOutputStream out) throws IOException {
+    private void registerHero(SocketChannel socketChannel, String heroName) {
         try {
-            LOGGER.info("Starting hero registration...");
-
-            // Step 1: Get the username from the client
-            String username = in.readUTF();
-            LOGGER.info("Received username: " + username);
-
-            // Step 2: Assign a random free position
-            Position randomPosition = mapGenerator.getRandomFreePosition();
-            if (randomPosition == null) {
-                randomPosition= new Position(0,0);
-                LOGGER.warning("No free positions available on the board. Using default position: " + randomPosition);
+            if (!isConnectionValid(socketChannel)) {
+                LOGGER.warning("Cannot register hero. Connection is invalid: " + socketChannel);
+                return;
             }
-            LOGGER.info("Assigned random free position: " + randomPosition);
 
-            // Step 3: Generate unique hero ID and assign default stats
-            String uniqueId = "HERO-" + nextHeroId++;
-            Hero clientHero = new Hero(username, uniqueId, randomPosition, "images/mainChar2.png");
+            // Construct the success message
+            String responseMessage = "Hero registered: " + heroName;
 
-            // Step 4: Register the hero in the game and map
-            mapGenerator.setHeroPosition(randomPosition); // Update the map
-            mapGenerator.setHero(clientHero); // Track the hero globally
-            LOGGER.info("Registered hero: " + clientHero);
-
-            // Step 5: Notify the client of successful registration
-            out.writeUTF("Hero registered successfully at position: " + randomPosition);
+            // Send the message back to the client
+            DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream());
+            out.writeUTF(responseMessage);
             out.flush();
 
-            // Step 6: Send the current map state to the new client
-            String updatedDungeonMap = commandExecutor.getDungeonMapFromRepository();
-            out.writeUTF(updatedDungeonMap); // Send the map
-            out.flush();
-            LOGGER.info("Sent current game state to new client.");
-
-        } catch (IllegalStateException e) {
-            LOGGER.log(Level.SEVERE, "Critical error: No free positions available on the board.", e);
-            out.writeUTF("Error: No free positions available on the board. Registration failed.");
-            out.flush();
+            System.out.println("Sent to client: " + responseMessage); // Debug confirmation
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Error during hero registration.", e);
-            out.writeUTF("Error: Failed to register hero. Try again later.");
-            out.flush();
+            LOGGER.warning("Failed to register hero: " + e.getMessage());
         }
     }
-
-    private boolean running = true; // Added to control the server loop
 
     public void startGameServer() {
         LOGGER.info("Game server started...");
         try {
             while (running) {
-                // Check if selector is open before proceeding
-                if (!selector.isOpen()) {
-                    LOGGER.warning("Selector is closed. Stopping server loop.");
-                    break;
-                }
-
-                // Handle ready keys using selector
                 try {
-                    selector.select();
+                    if (selector == null || !selector.isOpen()) {
+                        LOGGER.warning("Selector is closed. Stopping server loop.");
+                        break;
+                    }
+
+                    selector.select(); // This blocks until a key is ready
+
                     Set<SelectionKey> selectedKeys = selector.selectedKeys();
-                    LOGGER.info("Number of selected keys: " + selectedKeys.size());
                     Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
                     while (keyIterator.hasNext()) {
                         SelectionKey key = keyIterator.next();
-                        if (key.isReadable()) {
+                        if (key.isValid() && key.isReadable()) {
                             LOGGER.info("Processing readable key...");
                             readFromKey(key);
-                        } else if (key.isAcceptable()) {
+                        } else if (key.isValid() && key.isAcceptable()) {
                             LOGGER.info("Processing acceptable key...");
                             acceptFromKey(key);
                         }
-                        keyIterator.remove(); // Remove processed key
+                        keyIterator.remove(); // Remove each processed key
                     }
+                } catch (ClosedSelectorException e) {
+                    LOGGER.warning("Selector was closed. Exiting the server loop.");
+                    break; // Exit the loop if the selector is closed
                 } catch (IOException e) {
                     LOGGER.log(Level.SEVERE, "Error in selector loop", e);
-                    throw new RuntimeException("Server encountered a critical error in selector loop", e);
                 }
             }
         } finally {
-            shutdown(); // Cleanup resources at the end
+            shutdown(); // Ensure proper shutdown
+        }
+    }
+    private boolean isConnectionValid(SocketChannel channel) {
+        return channel != null && channel.isOpen() && channel.isConnected();
+    }
+    private void acceptFromKey(SelectionKey key) {
+        try {
+            ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
+            SocketChannel socketChannel = serverSocketChannel.accept();
+
+            if (socketChannel != null) {
+                socketChannel.configureBlocking(true);
+
+                try (DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
+                     DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream())) {
+
+                    LOGGER.info("New client connected: " + socketChannel.getRemoteAddress());
+                    String heroName = in.readUTF(); // Assume hero name is sent first by the client
+                    registerHero(socketChannel, heroName);
+
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Error during Hero registration via acceptFromKey", e);
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Problem accepting connection", e);
         }
     }
 
-    // Shutdown method to ensure all resources are properly closed
+    private void readFromKey(SelectionKey key) {
+        executorService.submit(() -> {
+            SocketChannel socketChannel = (SocketChannel) key.channel();
+            buffer.clear();
+            try {
+                if (socketChannel.read(buffer) <= 0) {
+                    LOGGER.warning("No data to read. Closing channel...");
+                    closeChannel(socketChannel);
+                    return;
+                }
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Client disconnected or error reading data. Closing channel.", e);
+                closeChannel(socketChannel);
+                return;
+            }
+
+            buffer.flip();
+            String command = new String(buffer.array(), 0, buffer.limit()).trim();
+            LOGGER.info("Received command: " + command);
+        });
+    }
+    private void closeChannel(SocketChannel socketChannel) {
+        try {
+            if (socketChannel.isOpen()) {
+                socketChannel.close();
+            }
+            LOGGER.info("Closed connection for channel.");
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Error closing client channel.", e);
+        }
+    }
+
+    private void broadcastMapUpdates(String updateMessage) {
+        for (SocketChannel socketChannel : commandExecutor.getSocketChannelsFromRepository()) {
+            try {
+                // Skip clients with invalid connections
+                if (!isConnectionValid(socketChannel)) {
+                    LOGGER.warning("Skipping closed or invalid socket: " + socketChannel);
+                    continue;
+                }
+
+                // Send the update to valid clients
+                DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream());
+                out.writeUTF(updateMessage);
+                out.flush();
+            } catch (IOException e) {
+                LOGGER.warning("Failed to send update to client: " + e.getMessage());
+            }
+        }
+    }
+
+    private void sendMessageToChannel(String message, SocketChannel socketChannel) throws IOException {
+        if (socketChannel != null && socketChannel.isOpen()) {
+            try {
+                buffer.clear();
+                buffer.put((message + "\n").getBytes());
+                buffer.flip();
+                socketChannel.write(buffer);
+            } catch (ClosedChannelException e) {
+                LOGGER.warning("Attempted to write to a closed SocketChannel: " + socketChannel);
+            }
+        } else {
+            LOGGER.warning("SocketChannel is null or closed. Cannot send message: " + message);
+        }
+    }
+
     private void shutdown() {
-        running = false; // Stop the server loop
+        running = false;
         try {
             if (selector != null && selector.isOpen()) {
                 selector.close();
@@ -210,175 +254,8 @@ public class GameServer {
             LOGGER.log(Level.SEVERE, "Error during server shutdown", e);
         }
     }
-    public void processClientHero(Hero hero) {
-        if (hero == null) {
-            LOGGER.warning("Cannot process null Hero.");
-            throw new IllegalArgumentException("Received invalid Hero from client.");
-        }
-
-        // Add the Hero to the MapGenerator
-        mapGenerator.setHero(hero);
-        LOGGER.info("Hero successfully registered: " + hero);
-    }
-    private void acceptFromKey(SelectionKey key) {
-        try {
-            ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
-            SocketChannel socketChannel = serverSocketChannel.accept();
-
-            if (socketChannel != null) {
-                socketChannel.configureBlocking(true); // Set blocking for safe transmission
-
-                try (DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
-                     DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream())) {
-
-                    LOGGER.info("New client connected: " + socketChannel.getRemoteAddress());
-                    registerHero(in, out); // Register hero
-
-                    // Start enemy movement if this is the first connection
-                    startEnemyMovementIfNeeded();
-
-                } catch (IOException e) {
-                    LOGGER.log(Level.SEVERE, "Error during Hero registration via acceptFromKey", e);
-                }
-            }
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Problem accepting connection", e);
-        }
-    }
-    private void broadcastMapUpdates() {
-        executorService.submit(() -> {
-            while (running) {
-                try {
-                    Thread.sleep(1000); // Update interval (e.g., 1 second)
-
-                    // Get the current map state
-                    String updatedDungeonMap = commandExecutor.getDungeonMapFromRepository();
-
-                    // Broadcast to all connected clients
-                    Collection<SocketChannel> socketChannels = commandExecutor.getSocketChannelsFromRepository();
-                    for (SocketChannel socketChannel : socketChannels) {
-                        sendMessageToChannel(updatedDungeonMap, socketChannel);
-                    }
-                } catch (InterruptedException e) {
-                    LOGGER.log(Level.WARNING, "Broadcast thread interrupted.", e);
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Error broadcasting map updates.", e);
-                }
-            }
-        });
-    }
-    private void readFromKey(SelectionKey key) {
-        executorService.submit(() -> {
-            SocketChannel socketChannel = (SocketChannel) key.channel();
-            buffer.clear();
-            int readBytes;
-            try {
-                // Step 1: Read data from the client
-                readBytes = socketChannel.read(buffer);
-            } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, PROBLEM_READING_FROM_CHANNEL_MESSAGE, e);
-                closeChannel(socketChannel);
-                return;
-            }
-
-            if (readBytes <= 0) {
-                LOGGER.info(NOTHING_TO_READ_CLOSING_CHANNEL_MESSAGE);
-                closeChannel(socketChannel);
-                return;
-            }
-
-            // Step 2: Process the command
-            buffer.flip();
-            String command = new String(buffer.array(), 0, buffer.limit()).trim();
-            LOGGER.info("Received command: " + command + " from SocketChannel: " + socketChannel);
-
-            // Call the "answerForCommand" to process the data
-            answerForCommand(command, socketChannel);
-        });
-    }
-
-    private void answerForCommand(String command, SocketChannel socketChannel) {
-        try {
-            // Step 1: Check if the user (socketChannel) is already registered
-            if (!playerRepository.isUserRegistered(socketChannel)) {
-                LOGGER.info("Registering new user with command: " + command);
-
-                // Assuming command is "REGISTER", register the Hero manually
-                if (command.equalsIgnoreCase("REGISTER")) {
-                    try (DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
-                         DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream())) {
-
-                        // Use the updated registerHero method
-                        registerHero(in, out);
-                    }
-                }
-
-                // Register the user in the PlayerRepository (assuming command is part of user registration logic)
-                String response = playerRepository.registerUser(socketChannel, command, mapGenerator);
-                sendMessageToChannel(response, socketChannel); // Notify the client
-
-                return;
-            }
-
-            // Step 2: If the user is already registered, execute further commands
-            UserRecipient userRecipient = new UserRecipient(null, null);
-            String commandResult = commandExecutor.executeCommand(command, socketChannel, userRecipient);
-
-            // Step 3: Send messages to other users, if applicable
-            String messageForOtherUser = userRecipient.getMessage();
-            if (messageForOtherUser != null) {
-                sendMessageToChannel(messageForOtherUser, userRecipient.getSocketChannel());
-            }
-
-            // Step 4: Respond to the command sender
-            sendMessageToChannel(commandResult, socketChannel);
-
-            // Update the game map for all connected users
-            String updatedDungeonMap = commandExecutor.getDungeonMapFromRepository();
-            Collection<SocketChannel> socketChannels = commandExecutor.getSocketChannelsFromRepository();
-            for (SocketChannel socketChannelRecipient : socketChannels) {
-                sendMessageToChannel(updatedDungeonMap, socketChannelRecipient);
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error during command processing: ", e);
-        }
-    }
-
-    private void sendMessageToChannel(String message, SocketChannel socketChannel) {
-        if (socketChannel == null || !socketChannel.isOpen()) {
-            LOGGER.warning("SocketChannel is closed or null! Unable to send message: " + message);
-            return;
-        }
-
-        buffer.clear();
-        buffer.put(message.getBytes());
-        buffer.flip();
-
-        try {
-            socketChannel.write(buffer);
-            LOGGER.info("Message sent to " + socketChannel.getRemoteAddress() + ": " + message);
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Problem occurred while writing to channel.", e);
-            closeChannel(socketChannel);
-        }
-    }
-
-    private void closeChannel(SocketChannel socketChannel) {
-        try {
-            if (socketChannel.isOpen()) {
-                socketChannel.close();
-                LOGGER.info("Closed channel: " + socketChannel.getRemoteAddress());
-            }
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Problem occurred while closing channel.", e);
-        }
-    }
 
     public static GameServer createGameServer(MapGenerator gameRepository) {
         return new GameServer(gameRepository);
     }
-
-  
 }

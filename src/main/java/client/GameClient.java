@@ -1,4 +1,3 @@
-// Updated GameClient.java
 package client;
 
 import Characters.*;
@@ -13,13 +12,11 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.net.InetSocketAddress;
-import java.util.logging.Logger;
 
 public class GameClient {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 8080;
     private static final int BUFFER_SIZE = 1024;
-
 
     public void startGame(String username) {
         final SocketChannel socketChannel;
@@ -34,27 +31,32 @@ public class GameClient {
             out = new DataOutputStream(socketChannel.socket().getOutputStream());
             in = new DataInputStream(socketChannel.socket().getInputStream());
 
+            // Send the username to the server
             out.writeUTF(username);
             out.flush();
             System.out.println("Sent username to server: " + username);
 
+            // Handle the server's registration response
             String response = in.readUTF();
             System.out.println("Server response: " + response);
 
-            if (response.startsWith("Hero registered successfully at position:")) {
-                String[] parts = response.split(":");
-                if (parts.length > 1) {
-                    String[] position = parts[1].trim().split(",");
-                    int x = Integer.parseInt(position[0]);
-                    int y = Integer.parseInt(position[1]);
+            if (response.startsWith("REGISTERED:HERO_AT")) {
+                try {
+                    // Parse the position from the response (e.g., REGISTERED:HERO_AT(x,y))
+                    String positionData = response.substring(response.indexOf('(') + 1, response.indexOf(')'));
+                    String[] position = positionData.split(",");
+                    int x = Integer.parseInt(position[0].trim());
+                    int y = Integer.parseInt(position[1].trim());
 
-                    // Assign the hero
+                    // Create the hero with the given position
                     Hero hero = new Hero(username, "Client-HERO-1", new Position(x, y), "images/mainChar2.png");
                     System.out.println("Hero initialized: " + hero);
 
+                    // Set up the MapGenerator with the hero
                     MapGenerator mapGenerator = new MapGenerator();
-                    mapGenerator.setHero(hero); // Pass Hero to MapGenerator
+                    mapGenerator.setHero(hero);
 
+                    // Pass everything to your GUI
                     final SocketChannel finalSocketChannel = socketChannel;
                     final DataInputStream finalIn = in;
                     final DataOutputStream finalOut = out;
@@ -65,6 +67,9 @@ public class GameClient {
                             throw new RuntimeException(e);
                         }
                     });
+                } catch (Exception e) {
+                    System.err.println("Failed to parse server response: " + response);
+                    e.printStackTrace();
                 }
             } else {
                 System.err.println("Unexpected server response: " + response);
@@ -73,7 +78,16 @@ public class GameClient {
             e.printStackTrace();
         }
     }
-
+    private boolean isConnectionValid(SocketChannel channel) {
+        return channel != null && channel.isOpen() && channel.isConnected();
+    }
+    private void handleConnectionLoss() {
+        System.err.println("Connection lost! Restart or check the server.");
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(null, "Connection lost! The game will now close.");
+            System.exit(1); // Exit if the connection is lost
+        });
+    }
     private void createAndShowGUI(SocketChannel socketChannel, DataInputStream in, DataOutputStream out, MapGenerator mapGenerator) throws IOException {
         JFrame frame = new JFrame();
         frame.setTitle("Dungeons");
@@ -83,63 +97,88 @@ public class GameClient {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(2000, 2000);
 
+        // Ensure the hero is properly initialized before starting the map
         if (mapGenerator.getHero() == null) {
             throw new IllegalStateException("Hero is null during GUI initialization.");
         }
 
         frame.add(mapGenerator, BorderLayout.CENTER);
 
-        ActionsPanel actionsPanel = new ActionsPanel(    mapGenerator.getHero(),   // Get Hero from MapGenerator
-                 mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
+        ActionsPanel actionsPanel = new ActionsPanel(
+                mapGenerator.getHero(), mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
         frame.add(actionsPanel, BorderLayout.SOUTH);
 
         frame.setVisible(true);
 
+        // Start listening for updates from the server
         new Thread(() -> listenForServerUpdates(socketChannel, mapGenerator)).start();
     }
+
     private void listenForServerUpdates(SocketChannel socketChannel, MapGenerator mapGenerator) {
-        try (DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream())) {
+        try {
+            DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    // Check if there is data available before reading
-                    if (socketChannel.isConnected() && in.available() > 0) {
-                        String serverMessage = in.readUTF(); // Read updates from the server
-                        System.out.println("Server update: " + serverMessage);
-
-                        // Process specific gameplay updates here
-                        SwingUtilities.invokeLater(() -> {
-                            if (serverMessage.startsWith("MOVE")) {
-                                // Example: Update hero position based on server instructions
-                                String[] parts = serverMessage.split(" ");
-                                int newRow = Integer.parseInt(parts[1]);
-                                int newCol = Integer.parseInt(parts[2]);
-                                mapGenerator.updatePlayerPosition(
-                                        mapGenerator.getHero().getPosition(),
-                                        new Position(newRow, newCol),
-                                        mapGenerator.getHero()
-                                );                            }
-                            // Additional updates like treasure collection or enemy interactions can go here
-                        });
+                    // Validate the connection before attempting to read
+                    if (!isConnectionValid(socketChannel)) {
+                        System.err.println("Connection invalid. Stopping listener...");
+                        handleConnectionLoss();
+                        return; // Exit the thread
                     }
-                } catch (EOFException eofException) {
-                    // EOFException signifies the server closed the connection, handle it cleanly
-                    System.err.println("Connection closed by server.");
-                    break; // Exit the loop if the connection is closed
+
+                    // Proceed with reading if the connection is valid
+                    if (in.available() > 0) {
+                        String serverMessage = in.readUTF();
+                        System.out.println("Server update: " + serverMessage);
+                        processMessage(serverMessage, mapGenerator);
+                    }
+                } catch (EOFException e) {
+                    System.err.println("EOF reached. Server likely closed the connection.");
+                    handleConnectionLoss();
+                    return; // Exit on EOFException
                 }
             }
         } catch (IOException e) {
-            // Handle any other IO exceptions
             e.printStackTrace();
-        } finally {
-            // Close the socket connection properly
-            try {
-                if (socketChannel != null && socketChannel.isOpen()) {
-                    socketChannel.close();
-                }
-            } catch (IOException closeException) {
-                closeException.printStackTrace();
+            handleConnectionLoss();
+        }
+    }
+    private void processMessage(String serverMessage, MapGenerator mapGenerator) {
+        // Handle "Hero registered: [HeroName]" response
+        if (serverMessage.startsWith("Hero registered:")) {
+            // Extract and print the hero’s name
+            String heroName = serverMessage.substring("Hero registered:".length()).trim();
+            System.out.println("Hero successfully registered: " + heroName);
+
+            // Exit here as we already processed the message
+            return;
+        }
+
+        // Add handling for other common server messages
+        // For example, MAP_UPDATE or other commands can also be parsed here
+        if (serverMessage.startsWith("MAP_UPDATE")) {
+            // Example placeholder handling for map updates
+            System.out.println("Map update received from server: " + serverMessage);
+            return;
+        }
+
+        // If no known patterns match, log it as an unexpected response
+        System.err.println("Unexpected server response: " + serverMessage);
+    }
+    private void updateEnemyPositionsOnMap(String enemyData, MapGenerator mapGenerator) {
+        String[] positions = enemyData.split(";");
+        for (String pos : positions) {
+            if (!pos.isEmpty()) {
+                String[] coords = pos.split(",");
+                int row = Integer.parseInt(coords[0]);
+                int col = Integer.parseInt(coords[1]);
+
+                // Update the map with the new enemy position
+                mapGenerator.setContentAtPosition(new Position(row, col), "M");
             }
         }
+
+        mapGenerator.repaint(); // Refresh the map display
     }
     public static GameClient createGameClient() {
         return new GameClient();
