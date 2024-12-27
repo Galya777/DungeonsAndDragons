@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 
 public class GameServer {
     private static final String SERVER_HOST = System.getenv("SERVER_HOST") != null ? System.getenv("SERVER_HOST") : "0.0.0.0";
-    private static final int SERVER_PORT = System.getenv("SERVER_PORT") != null ? Integer.parseInt(System.getenv("SERVER_PORT")) : 8080;
+    public static final int SERVER_PORT = System.getenv("SERVER_PORT") != null ? Integer.parseInt(System.getenv("SERVER_PORT")) : 8080;
     private static final int BUFFER_SIZE = 1024;
 
     private static final String PROBLEM_OPENING_RESOURCES_MESSAGE = "Problem with opening resources.";
@@ -47,7 +47,12 @@ public class GameServer {
         this.mapGenerator = gameRepository;
         this.commandExecutor = new CommandExecutor(gameRepository);
         this.playerRepository = new PlayerRepository();
+        startEnemyMovementIfNeeded(); // Start enemies if needed
+// Initialize the executor service for multithreading
+        executorService = Executors.newCachedThreadPool();
 
+// Now perform other operations, such as broadcasting map updates
+        broadcastMapUpdates();
         // Open resources for the server
         openResources();
 
@@ -72,7 +77,15 @@ public class GameServer {
             executorService.shutdown();
         }));
     }
+    private boolean enemyMovementStarted = false;
 
+    private synchronized void startEnemyMovementIfNeeded() {
+        if (!enemyMovementStarted) {
+            mapGenerator.startEnemyMovement(); // Start enemy movement
+            enemyMovementStarted = true;
+            LOGGER.info("Enemy movements started.");
+        }
+    }
     private void openResources() {
         try {
             // Open and configure the server socket channel
@@ -123,6 +136,13 @@ public class GameServer {
             // Step 5: Notify the client of successful registration
             out.writeUTF("Hero registered successfully at position: " + randomPosition);
             out.flush();
+
+            // Step 6: Send the current map state to the new client
+            String updatedDungeonMap = commandExecutor.getDungeonMapFromRepository();
+            out.writeUTF(updatedDungeonMap); // Send the map
+            out.flush();
+            LOGGER.info("Sent current game state to new client.");
+
         } catch (IllegalStateException e) {
             LOGGER.log(Level.SEVERE, "Critical error: No free positions available on the board.", e);
             out.writeUTF("Error: No free positions available on the board. Registration failed.");
@@ -134,33 +154,61 @@ public class GameServer {
         }
     }
 
-    public void startGameServer() {
-        boolean running = true;
-        LOGGER.info("Game server started...");
-        while (running) {
-            try {
-                selector.select();
-                Set<SelectionKey> selectedKeys = selector.selectedKeys();
-                LOGGER.info("Number of selected keys: " + selectedKeys.size());
-                Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+    private boolean running = true; // Added to control the server loop
 
-                while (keyIterator.hasNext()) {
-                    SelectionKey key = keyIterator.next();
-                    if (key.isReadable()) {
-                        LOGGER.info("Processing readable key...");
-                        readFromKey(key);
-                    } else if (key.isAcceptable()) {
-                        LOGGER.info("Processing acceptable key...");
-                        acceptFromKey(key);
-                    }
-                    keyIterator.remove();
+    public void startGameServer() {
+        LOGGER.info("Game server started...");
+        try {
+            while (running) {
+                // Check if selector is open before proceeding
+                if (!selector.isOpen()) {
+                    LOGGER.warning("Selector is closed. Stopping server loop.");
+                    break;
                 }
-            } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, "Error in selector loop", e);
-                throw new RuntimeException(PROBLEM_SELECTING_KEYS_MESSAGE, e);
+
+                // Handle ready keys using selector
+                try {
+                    selector.select();
+                    Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                    LOGGER.info("Number of selected keys: " + selectedKeys.size());
+                    Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+
+                    while (keyIterator.hasNext()) {
+                        SelectionKey key = keyIterator.next();
+                        if (key.isReadable()) {
+                            LOGGER.info("Processing readable key...");
+                            readFromKey(key);
+                        } else if (key.isAcceptable()) {
+                            LOGGER.info("Processing acceptable key...");
+                            acceptFromKey(key);
+                        }
+                        keyIterator.remove(); // Remove processed key
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Error in selector loop", e);
+                    throw new RuntimeException("Server encountered a critical error in selector loop", e);
+                }
             }
+        } finally {
+            shutdown(); // Cleanup resources at the end
         }
-        executorService.shutdown();
+    }
+
+    // Shutdown method to ensure all resources are properly closed
+    private void shutdown() {
+        running = false; // Stop the server loop
+        try {
+            if (selector != null && selector.isOpen()) {
+                selector.close();
+            }
+            if (serverSocketChannel != null && serverSocketChannel.isOpen()) {
+                serverSocketChannel.close();
+            }
+            executorService.shutdown();
+            LOGGER.info("Server shut down gracefully.");
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Error during server shutdown", e);
+        }
     }
     public void processClientHero(Hero hero) {
         if (hero == null) {
@@ -186,6 +234,9 @@ public class GameServer {
                     LOGGER.info("New client connected: " + socketChannel.getRemoteAddress());
                     registerHero(in, out); // Register hero
 
+                    // Start enemy movement if this is the first connection
+                    startEnemyMovementIfNeeded();
+
                 } catch (IOException e) {
                     LOGGER.log(Level.SEVERE, "Error during Hero registration via acceptFromKey", e);
                 }
@@ -194,7 +245,30 @@ public class GameServer {
             LOGGER.log(Level.SEVERE, "Problem accepting connection", e);
         }
     }
+    private void broadcastMapUpdates() {
+        executorService.submit(() -> {
+            while (running) {
+                try {
+                    Thread.sleep(1000); // Update interval (e.g., 1 second)
 
+                    // Get the current map state
+                    String updatedDungeonMap = commandExecutor.getDungeonMapFromRepository();
+
+                    // Broadcast to all connected clients
+                    Collection<SocketChannel> socketChannels = commandExecutor.getSocketChannelsFromRepository();
+                    for (SocketChannel socketChannel : socketChannels) {
+                        sendMessageToChannel(updatedDungeonMap, socketChannel);
+                    }
+                } catch (InterruptedException e) {
+                    LOGGER.log(Level.WARNING, "Broadcast thread interrupted.", e);
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Error broadcasting map updates.", e);
+                }
+            }
+        });
+    }
     private void readFromKey(SelectionKey key) {
         executorService.submit(() -> {
             SocketChannel socketChannel = (SocketChannel) key.channel();

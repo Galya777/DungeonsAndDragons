@@ -10,7 +10,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MapGenerator extends JPanel {
     private static final int ROWS = 20;
@@ -27,6 +28,8 @@ public class MapGenerator extends JPanel {
     private ArrayList<Minion> enemies;
     private ArrayList<Treasure> treasures;
     private Set<Position> freePositions;
+    private Timer enemyTimer; // Timer to handle enemy movement
+    private static final int ENEMY_MOVE_INTERVAL = 2000; // 2 seconds between moves
 
     public MapGenerator(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions, Hero hero) {
         if (map == null || enemies == null || treasures == null || freePositions == null) {
@@ -48,6 +51,7 @@ public class MapGenerator extends JPanel {
         }
         initializeImages();
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
+        startEnemyMovement();
     }
 
     public MapGenerator() {
@@ -55,12 +59,13 @@ public class MapGenerator extends JPanel {
         this.enemies = new ArrayList<>();
         this.treasures = new ArrayList<>();
         this.freePositions = new HashSet<>();
-        this.hero=null;
+        this.hero = null;
 
         initializeImages();
         setPreferredSize(new Dimension(COLS * CELL_SIZE, ROWS * CELL_SIZE));
 
         generateRandomMap();
+        startEnemyMovement();
     }
 
     private void initializeImages() {
@@ -146,6 +151,7 @@ public class MapGenerator extends JPanel {
         updateNewTreasureAtPosition(treasure, row, col, stayingHeroId);
 
     }
+
     public void setHeroPosition(Position heroPosition) {
         if (heroPosition == null) {
             throw new IllegalArgumentException("Hero position cannot be null.");
@@ -159,12 +165,13 @@ public class MapGenerator extends JPanel {
         freePositions.remove(heroPosition); // Remove this position from free positions
         repaint(); // Refresh the map display
     }
+
     public void updateDeadMinionAtPosition(Position position, String update) {
         Position newPosition = getFreePosition();
         if (newPosition == null) {
             return;
         }
-        for(Minion minion : enemies) {
+        for (Minion minion : enemies) {
             if (minion.getPosition().equals(position)) {
                 minion.revive(newPosition);
                 minion.setPosition(newPosition.getRow(), newPosition.getCol());
@@ -224,34 +231,60 @@ public class MapGenerator extends JPanel {
     }
 
     public void generateRandomMap() {
+        // Initialize map with walls
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                map[i][j] = "#"; // Fill the map with walls
+            }
+        }
+
+        // Use recursive backtracking to carve out the labyrinth
         Random random = new Random();
+        carvePath(1, 1, random); // Start from (1, 1)
 
-        for (int i = 0; i < ROWS; i++) {
-            for (int j = 0; j < COLS; j++) {
-                map[i][j] = String.valueOf('#');
-            }
-        }
+        // Ensure there is an entrance and an exit
+        map[1][0] = "."; // Entrance
+        freePositions.add(new Position(1, 0));
+        map[ROWS - 2][COLS - 1] = "."; // Exit
+        freePositions.add(new Position(ROWS - 2, COLS - 1));
 
-        for (int i = 0; i < ROWS; i++) {
-            for (int j = 0; j < COLS; j++) {
-                if (random.nextBoolean()) {
-                    map[i][j] = String.valueOf('.');
-                    freePositions.add(new Position(i, j));
-                }
-            }
-        }
+        // Place enemies and treasures
+        placeEnemies(10, random); // Adjust the enemy count as needed
+        placeTreasure(20, random); // Adjust the treasure count as needed
 
-        placeEnemies(10, random);
-        placeTreasure(20, random);
-
-
+        // Redraw the map
         repaint();
+    }
+
+    // Helper to recursively carve the path
+    private void carvePath(int row, int col, Random random) {
+        // Possible directions to move: up, down, left, right
+        int[][] directions = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}};
+        Collections.shuffle(Arrays.asList(directions), random); // Randomize directions
+
+        for (int[] direction : directions) {
+            int newRow = row + direction[0];
+            int newCol = col + direction[1];
+
+            // Ensure the new cell is within bounds and unvisited (still a wall)
+            if (newRow > 0 && newRow < ROWS - 1 && newCol > 0 && newCol < COLS - 1 && Objects.equals(map[newRow][newCol], "#")) {
+                // Carve the path
+                map[newRow][newCol] = ".";
+                map[row + direction[0] / 2][col + direction[1] / 2] = "."; // Carve the connecting cell
+                freePositions.add(new Position(newRow, newCol)); // Mark as free position
+                freePositions.add(new Position(row + direction[0] / 2, col + direction[1] / 2));
+
+                // Recursively carve paths from the new cell
+                carvePath(newRow, newCol, random);
+            }
+        }
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        // Draw the map (existing logic)
         for (int i = 0; i < ROWS; i++) {
             for (int j = 0; j < COLS; j++) {
                 int x = j * CELL_SIZE;
@@ -265,24 +298,34 @@ public class MapGenerator extends JPanel {
             }
         }
 
+        // Draw enemies
         for (Minion enemy : enemies) {
             g.drawImage(enemyImage, enemy.getPosition().getCol() * CELL_SIZE, enemy.getPosition().getRow() * CELL_SIZE, CELL_SIZE, CELL_SIZE, this);
         }
 
+        // Draw treasures
         for (Treasure treasure : treasures) {
             g.drawImage(treasureImage, treasure.getPosition().getCol() * CELL_SIZE, treasure.getPosition().getRow() * CELL_SIZE, CELL_SIZE, CELL_SIZE, this);
         }
+
         // Draw the hero
         if (hero != null) {
             g.drawImage(heroImage, hero.getPosition().getCol() * CELL_SIZE, hero.getPosition().getRow() * CELL_SIZE, CELL_SIZE, CELL_SIZE, this);
         }
+
+        // Display hero health
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Hero Health: " + hero.getHealth(), 10, 20); // Example position
     }
 
     public static MapGenerator createNewGameRepository(String[][] map, ArrayList<Minion> enemies, ArrayList<Treasure> treasures, Set<Position> freePositions, Hero hero) {
         if (map == null || enemies.isEmpty() || treasures.isEmpty() || freePositions == null) {
             throw new IllegalArgumentException("Invalid arguments provided to createNewGameRepository.");
         }
-        return new MapGenerator(map, enemies, treasures, freePositions, hero);
+        MapGenerator mapGenerator = new MapGenerator(map, enemies, treasures, freePositions, hero);
+        mapGenerator.startEnemyMovement(); // Start the enemy movement timer for the new game
+        return mapGenerator;
     }
 
     public void updateNewTreasureAtPosition(Treasure treasure, int row, int col, String heroId) {
@@ -319,9 +362,10 @@ public class MapGenerator extends JPanel {
             return;
         }
 
-        map[newPosition.getRow()][newPosition.getCol()] ="T";
+        map[newPosition.getRow()][newPosition.getCol()] = "T";
         treasures.add(treasure);
     }
+
     public void updateMovingHeroFromPosition(Position position, String idToBeRemoved) {
         int row = position.getRow();
         int col = position.getCol();
@@ -338,6 +382,7 @@ public class MapGenerator extends JPanel {
         }
 
     }
+
     public void updatePlayerPosition(Position oldPosition, Position newPosition, Hero hero) {
         if (oldPosition == null || newPosition == null || hero == null) {
             throw new IllegalArgumentException("Invalid arguments for updating player position.");
@@ -362,6 +407,7 @@ public class MapGenerator extends JPanel {
 
         repaint(); // Refresh the map display
     }
+
     public void setHero(Hero hero) {
         if (hero == null) {
             throw new IllegalArgumentException("Hero cannot be null.");
@@ -374,8 +420,14 @@ public class MapGenerator extends JPanel {
             map[startPosition.getRow()][startPosition.getCol()] = "H"; // Place the hero on the map
         }
 
+        stopEnemyMovement(); // Stop enemy movement if a new hero is set
         repaint(); // Redraw the map
     }
+
+    public Hero getHero() {
+        return hero;
+    }
+
     public Position getRandomFreePosition() {
         List<Position> freePositions = new ArrayList<>();
         for (int row = 0; row < map.length; row++) {
@@ -394,4 +446,140 @@ public class MapGenerator extends JPanel {
         Random random = new Random();
         return freePositions.get(random.nextInt(freePositions.size()));
     }
-}
+
+    public void moveHero(String command) {
+        if (hero == null) {
+            throw new IllegalStateException("Hero is not set in the MapGenerator.");
+        }
+
+        Position currentPos = hero.getPosition(); // Get the current position of the hero
+        Position newPos = null;
+
+        switch (command) {
+            case "MOVE UP":
+                newPos = Position.createNewPosition(currentPos.getRow() - 1, currentPos.getCol());
+                break;
+            case "MOVE DOWN":
+                newPos = Position.createNewPosition(currentPos.getRow() + 1, currentPos.getCol());
+                break;
+            case "MOVE LEFT":
+                newPos = Position.createNewPosition(currentPos.getRow(), currentPos.getCol() - 1);
+                break;
+            case "MOVE RIGHT":
+                newPos = Position.createNewPosition(currentPos.getRow(), currentPos.getCol() + 1);
+                break;
+            default:
+                System.out.println("Invalid movement command: " + command);
+                return;
+        }
+
+        // Ensure the new position is valid (within bounds and not on a wall)
+        if (newPos != null) {
+            int newRow = newPos.getRow();
+            int newCol = newPos.getCol();
+
+            if (newRow < 0 || newRow >= map.length || newCol < 0 || newCol >= map[0].length || Objects.equals(map[newRow][newCol], "#")) {
+                System.out.println("Invalid movement: Cannot move to a wall or out of bounds.");
+                return;
+            }
+            updatePlayerPosition(currentPos, newPos, hero); // Update the hero's position
+            checkGameOver(); // Verify if the game is over after moving the hero
+        }
+        // Removed direct enemy movement calls from `PlayerMoving`
+    }
+    public synchronized void moveEnemies() {
+        Random random = new Random();
+        List<Minion> toRemove = new ArrayList<>(); // Track minions to remove
+
+        for (Minion enemy : enemies) {
+            Position currentPos = enemy.getPosition(); // Get the enemy's current position
+            Position newPos = null;
+            int maxTries = 10; // Give up after 10 failed attempts
+            int tries = 0;
+
+            System.out.println("Processing enemy at position: " + currentPos); // Debug message
+
+            // Keep trying until we find a valid move
+            while (tries < maxTries && newPos == null) {
+                int direction = random.nextInt(4); // Randomly pick a direction
+                int newRow = currentPos.getRow();
+                int newCol = currentPos.getCol();
+
+                // Determine new position based on direction
+                switch (direction) {
+                    case 0 -> newRow -= 1; // UP
+                    case 1 -> newRow += 1; // DOWN
+                    case 2 -> newCol -= 1; // LEFT
+                    case 3 -> newCol += 1; // RIGHT
+                }
+
+                // Validate new position is within bounds
+                if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < COLS) {
+                    System.out.println("Checking position (" + newRow + ", " + newCol + ")"); // Debug message
+
+                    // Check if the hero is at the new position
+                    if ("H".equals(map[newRow][newCol])) {
+                        hero.decreaseHealth(10); // Reduce hero's health
+                        System.out.println("Hero was attacked! Health: " + hero.getHealth());
+                        toRemove.add(enemy); // Minion dies after attacking
+                        newPos = currentPos; // Minion doesn't move after dying
+                    } else if (".".equals(map[newRow][newCol])) {
+                        newPos = Position.createNewPosition(newRow, newCol); // Valid move
+                    }
+                }
+
+                tries++;
+            }
+
+            // If a valid position was found, move the enemy
+            if (newPos != null && !toRemove.contains(enemy)) {
+                map[currentPos.getRow()][currentPos.getCol()] = "."; // Clear old position
+                map[newPos.getRow()][newPos.getCol()] = "M"; // Mark new position as enemy
+                enemy.setPosition(newPos.getRow(), newPos.getCol()); // Update enemy position
+                System.out.println("Enemy moved to: " + newPos); // Debug message
+            }
+        }
+
+        // Remove enemies that collided with the hero
+        for (Minion deadEnemy : toRemove) {
+            enemies.remove(deadEnemy); // Remove from the list
+            Position pos = deadEnemy.getPosition();
+            map[pos.getRow()][pos.getCol()] = "."; // Clear map position
+            System.out.println("Minion killed at position: " + pos);
+        }
+
+        repaint(); // Refresh the map display to show enemy movements
+    }
+        public void startEnemyMovement () {
+            enemyTimer = new Timer(true); // Daemon timer to automatically stop with the program
+            enemyTimer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        System.out.println("Moving enemies..."); // Debug statement
+                        moveEnemies();
+                    } catch (Exception e) {
+                        System.err.println("Error in enemy movement: " + e.getMessage());
+                        e.printStackTrace(); // Debug stack trace
+                    }
+                }
+            }, 0, ENEMY_MOVE_INTERVAL); // Run immediately and then every 2 seconds
+        }
+
+    public synchronized void stopEnemyMovement() {
+        if (enemyTimer != null) {
+            enemyTimer.cancel();
+            enemyTimer = null;
+        }
+    }
+        public void checkGameOver() {
+            if (!hero.isAlive()) {
+                System.out.println("Game Over! Hero has died.");
+                stopEnemyMovement(); // Stop enemy movement timer
+                // Trigger additional game over logic/dialogs
+                System.exit(0); // Exit the game (optional)
+
+            }
+        }
+    }
+

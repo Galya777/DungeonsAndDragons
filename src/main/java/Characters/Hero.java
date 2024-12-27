@@ -96,12 +96,44 @@ public class Hero extends CharImpl{
         Treasure treasure = getTreasure(name);
         return (treasure != null) ? treasure.use(this) : OWNERSHIP_TREASURE_FALSE_MESSAGE;
     }
-
-    public void move(int dx, int dy) {
-        position.setRow(position.getRow() + dx);
-        position.setCol(position.getCol()+ dy);
+    public int getHealth() {
+        return stats.getHealth(); // Assuming stats manages the health
     }
+    public boolean isAlive() {
+        return stats.isAlive(); // Assuming stats maintains whether the hero is alive
+    }
+    public void decreaseHealth(int damage) {
+        if (damage < 0) {
+            throw new IllegalArgumentException("Damage value cannot be negative.");
+        }
 
+        stats.decreaseHealth(damage);
+        System.out.println(this.getName() + " took " + damage + " damage. Current health: " + stats.getHealth());
+
+        // Check if the hero is still alive
+        if (!stats.isAlive()) {
+            System.out.println(this.getName() + " has been defeated.");
+            dropLootWhenDead(); // Call the treasure-dropping method
+        }
+        if (getHealth() <= 0) {
+            System.out.println("Game Over!"); // Debug message
+            gameOver(); // Call the game-over logic
+        } else {
+            System.out.println("Hero's updated health: " +getHealth()); // Debug message
+        }
+    }
+    // This should trigger when the game ends
+    private void gameOver() {
+        System.out.println("Game Over! Final score: XYZ");
+    }
+    private void dropLootWhenDead() {
+        Treasure treasure = throwTreasureWhenDead();
+        if (treasure != null) {
+            System.out.println(this.getName() + " has dropped treasure: " + treasure.getName());
+            treasure.setPosition(this.getPosition());
+            // This is where you can add the treasure to the game map
+        }
+    }
     public Treasure getTreasure(String name) {
         return backpack.getItem(name);
     }

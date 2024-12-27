@@ -19,13 +19,12 @@ public class GameClient {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 8080;
     private static final int BUFFER_SIZE = 1024;
-    private Character hero; // Store the registered hero instance
 
 
     public void startGame(String username) {
-        SocketChannel socketChannel = null;
-        DataOutputStream out = null;
-        DataInputStream in = null;
+        final SocketChannel socketChannel;
+        final DataOutputStream out;
+        final DataInputStream in;
 
         try {
             socketChannel = SocketChannel.open();
@@ -49,18 +48,23 @@ public class GameClient {
                     int x = Integer.parseInt(position[0]);
                     int y = Integer.parseInt(position[1]);
 
-                    hero = new Hero(username, "Client-HERO-1", new Position(x, y), "images/mainChar2.png");
+                    // Assign the hero
+                    Hero hero = new Hero(username, "Client-HERO-1", new Position(x, y), "images/mainChar2.png");
                     System.out.println("Hero initialized: " + hero);
 
-                    if (hero != null) {
-                        final SocketChannel finalSocket = socketChannel;
-                        final DataInputStream finalIn = in;
-                        final DataOutputStream finalOut = out;
+                    MapGenerator mapGenerator = new MapGenerator();
+                    mapGenerator.setHero(hero); // Pass Hero to MapGenerator
 
-                        SwingUtilities.invokeLater(() -> createAndShowGUI(finalSocket, finalIn, finalOut));
-                    } else {
-                        System.err.println("Failed to initialize hero.");
-                    }
+                    final SocketChannel finalSocketChannel = socketChannel;
+                    final DataInputStream finalIn = in;
+                    final DataOutputStream finalOut = out;
+                    SwingUtilities.invokeLater(() -> {
+                        try {
+                            createAndShowGUI(finalSocketChannel, finalIn, finalOut, mapGenerator);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
             } else {
                 System.err.println("Unexpected server response: " + response);
@@ -70,7 +74,7 @@ public class GameClient {
         }
     }
 
-    private void createAndShowGUI(SocketChannel socketChannel, DataInputStream in, DataOutputStream out) {
+    private void createAndShowGUI(SocketChannel socketChannel, DataInputStream in, DataOutputStream out, MapGenerator mapGenerator) throws IOException {
         JFrame frame = new JFrame();
         frame.setTitle("Dungeons");
         ImageIcon icon = new ImageIcon("logo.jpg");
@@ -79,21 +83,18 @@ public class GameClient {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(2000, 2000);
 
-        // Initialize the map and display it
-        MapGenerator mapGenerator = new MapGenerator();
-
-        if (hero != null) {
-            mapGenerator.setHero((Hero) hero); // Assign the registered hero to the map
+        if (mapGenerator.getHero() == null) {
+            throw new IllegalStateException("Hero is null during GUI initialization.");
         }
+
         frame.add(mapGenerator, BorderLayout.CENTER);
 
-        // Add the actions panel for player interactions
-        ActionsPanel actionsPanel = new ActionsPanel(null, mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
+        ActionsPanel actionsPanel = new ActionsPanel(    mapGenerator.getHero(),   // Get Hero from MapGenerator
+                 mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
         frame.add(actionsPanel, BorderLayout.SOUTH);
 
         frame.setVisible(true);
 
-        // Start listening for server updates
         new Thread(() -> listenForServerUpdates(socketChannel, mapGenerator)).start();
     }
     private void listenForServerUpdates(SocketChannel socketChannel, MapGenerator mapGenerator) {
@@ -112,8 +113,11 @@ public class GameClient {
                                 String[] parts = serverMessage.split(" ");
                                 int newRow = Integer.parseInt(parts[1]);
                                 int newCol = Integer.parseInt(parts[2]);
-                                mapGenerator.updatePlayerPosition(hero.getPosition(), new Position(newRow, newCol), (Hero) hero);
-                            }
+                                mapGenerator.updatePlayerPosition(
+                                        mapGenerator.getHero().getPosition(),
+                                        new Position(newRow, newCol),
+                                        mapGenerator.getHero()
+                                );                            }
                             // Additional updates like treasure collection or enemy interactions can go here
                         });
                     }

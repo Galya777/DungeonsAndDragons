@@ -18,9 +18,21 @@ public class ActionsPanel extends JPanel {
     private PlayerMoving playerMoving;
     private DataInputStream in;
     private DataOutputStream out;
+    private final SocketChannel socketChannel; // Added as a field for validation.
 
     public ActionsPanel(Hero hero, MapGenerator mapGenerator, SocketChannel socketChannel, ByteBuffer bufferSend,
-                        DataInputStream in, DataOutputStream out) {
+                        DataInputStream in, DataOutputStream out) throws IllegalArgumentException, IOException {
+        // Validate Hero object
+        if (hero == null) {
+            throw new IllegalArgumentException("Hero cannot be null. Please ensure it is properly initialized.");
+        }
+
+        // Validate SocketChannel
+        if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
+            throw new IOException("SocketChannel is not connected or open.");
+        }
+
+        this.socketChannel = socketChannel;
         this.userRecipient = new UserRecipient(null, null);
         this.commandExecutor = new CommandExecutor(mapGenerator);
         this.setLayout(new BorderLayout());
@@ -54,16 +66,6 @@ public class ActionsPanel extends JPanel {
         this.add(scrollPane, BorderLayout.CENTER);
 
         try {
-            // Validate the SocketChannel
-            if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
-                throw new IOException("SocketChannel is not connected or open.");
-            }
-
-            // Validate the Hero object
-            if (hero == null) {
-                System.err.println("Warning: Hero is null. Some features may not work as intended.");
-            }
-
             // Initialize PlayerMoving
             this.playerMoving = new PlayerMoving(hero, socketChannel, mapGenerator, bufferSend);
 
@@ -83,20 +85,17 @@ public class ActionsPanel extends JPanel {
     }
 
     private void openBackpackWindow() {
-        // Create a new JFrame for the Backpack commands
+        // No changes in this method
         JFrame backpackFrame = new JFrame("Backpack Commands");
         backpackFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         backpackFrame.setSize(400, 200);
 
-        // Create buttons for the sub-commands
         JButton checkButton = new JButton("Check");
         JButton useButton = new JButton("Use");
         JButton throwButton = new JButton("Throw");
 
-        // Input field for treasure name (for Use and Throw commands)
         JTextField treasureInputField = new JTextField(15);
 
-        // Add action listeners for each button
         checkButton.addActionListener(e -> executeBackpackCommand("CHECK", null));
         useButton.addActionListener(e -> {
             String treasureName = treasureInputField.getText().trim();
@@ -115,7 +114,6 @@ public class ActionsPanel extends JPanel {
             }
         });
 
-        // Create a panel for the buttons and input field
         JPanel backpackPanel = new JPanel();
         backpackPanel.setLayout(new GridLayout(4, 1, 10, 10));
         backpackPanel.add(checkButton);
@@ -124,7 +122,6 @@ public class ActionsPanel extends JPanel {
         backpackPanel.add(useButton);
         backpackPanel.add(throwButton);
 
-        // Add the panel to the frame and make it visible
         backpackFrame.add(backpackPanel);
         backpackFrame.setVisible(true);
     }
@@ -133,8 +130,13 @@ public class ActionsPanel extends JPanel {
     private void executeCommand(String action) {
         new Thread(() -> {
             try {
+                // Check if socketChannel is still open
+                if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
+                    throw new IOException("Cannot execute command. The connection to the server is closed.");
+                }
+
                 // Send the command to the server
-                out.writeUTF(action);  // Send action (e.g., "PLAY") to the server
+                out.writeUTF(action);
                 out.flush();
 
                 // Reading server response
@@ -160,6 +162,11 @@ public class ActionsPanel extends JPanel {
     private void executeBackpackCommand(String action, String treasureName) {
         new Thread(() -> {
             try {
+                // Check if socketChannel is still open
+                if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
+                    throw new IOException("Cannot execute backpack command. The connection to the server is closed.");
+                }
+
                 String command = action;
                 if (treasureName != null) {
                     command += " " + treasureName;
