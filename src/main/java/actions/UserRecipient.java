@@ -2,6 +2,13 @@ package actions;
 
 import java.nio.channels.SocketChannel;
 
+/**
+ * The UserRecipient class represents a data model for handling a recipient
+ * within a user communication context in the application.
+ * It encapsulates a recipient's associated SocketChannel and the message
+ * intended to be sent or updated, providing necessary getter, setter,
+ * and utility methods for modification and access.
+ */
 public class UserRecipient {
     private SocketChannel socketChannel;
     private String message;

@@ -3,6 +3,10 @@ package Inventory;
 import Characters.Hero;
 import Characters.Position;
 
+/**
+ * Represents a spell that can be used in combat and learned by a hero in the game.
+ * The spell is a type of CombatTreasure and has its own unique properties such as mana cost.
+ */
 public class Spell extends CombatTreasure {
 
     private int manaCost;

@@ -6,6 +6,19 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.SocketChannel;
 
+/**
+ * A thread responsible for handling communication with a client
+ * using a non-blocking SocketChannel. This thread continuously reads
+ * data from the provided SocketChannel, writes it into a ByteBuffer,
+ * and then forwards the processed data to an OutputStream.
+ *
+ * The thread stops execution if the end of the stream is reached, or
+ * if an exception occurs during the read or write operations.
+ *
+ * Proper resource cleanup is performed by closing the socket channel
+ * during the termination of the thread, either after completion or
+ * in case of an exception.
+ */
 class ClientThread extends Thread {
     private SocketChannel socketChannel;
     private ByteBuffer buffer;

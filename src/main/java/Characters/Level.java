@@ -1,5 +1,13 @@
 package Characters;
 
+/**
+ * The Level class represents the leveling system of a character or entity,
+ * managing their current level and experience points. It provides methods
+ * to gain experience, handle level progression, and retrieve level-related
+ * information.
+ *
+ * The Level follows a singleton factory approach for controlled instance creation.
+ */
 public class Level {
     private int level;
     private int experience;

@@ -6,6 +6,11 @@ import java.awt.*;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * The Character interface defines the blueprint for a character in the game.
+ * It encapsulates the essential behaviors and attributes that every character must have,
+ * including rendering, combat functionality, and state management.
+ */
 public interface Character {
 
         void draw(Graphics g); // Method to render the object

@@ -1,6 +1,7 @@
 package actions;
 
 import Characters.Hero;
+import Characters.Position;
 import graphicScenes.MapGenerator;
 
 import java.awt.event.KeyAdapter;
@@ -12,6 +13,12 @@ import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
 import java.util.Queue;
 
+/**
+ * The PlayerMoving class extends KeyAdapter and handles the keyboard inputs
+ * to control the main character (hero) movements and interactions within the game.
+ * It also manages communication with a server through a SocketChannel for multiplayer
+ * or remote updates.
+ */
 public class PlayerMoving extends KeyAdapter {
     private Hero hero;
     private SocketChannel socketChannel;
@@ -51,6 +58,10 @@ public class PlayerMoving extends KeyAdapter {
                 break;
             case KeyEvent.VK_RIGHT:
                 command = "MOVE RIGHT";
+                break;
+            case KeyEvent.VK_SPACE:
+                // Hero attack logic
+
                 break;
         }
 

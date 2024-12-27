@@ -14,6 +14,19 @@ import java.nio.channels.SocketChannel;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
+/**
+ * The GameClient class handles interaction with the game server, including establishing a connection,
+ * managing game updates, and responding to server communications. It initializes the player's hero
+ * character, creates the game GUI, and processes ongoing updates from the server.
+ *
+ * This class is responsible for:
+ * - Connecting to the server via a SocketChannel.
+ * - Sending and receiving data using DataInputStream and DataOutputStream.
+ * - Handling player registration and initialization of the hero.
+ * - Creating the game GUI and rendering components.
+ * - Listening for server updates to handle hero and enemy position changes.
+ * - Managing connection loss and automatic reconnection to the server.
+ */
 public class GameClient {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 8080;
@@ -79,10 +92,21 @@ public class GameClient {
     private boolean isConnectionValid(SocketChannel channel) {
         return channel != null && channel.isOpen() && channel.isConnected();
     }
+
     private void handleConnectionLoss(SocketChannel oldSocketChannel, MapGenerator mapGenerator) {
         System.err.println("Connection lost! Attempting to reconnect...");
 
-        // Note: Close the old socketChannel if it's still open
+        // Notify the player via Frame (or console fallback)
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Connection to the server lost. Attempting to reconnect...",
+                    "Connection Lost",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        });
+
+        // Close the old socket connection
         try {
             if (oldSocketChannel != null && oldSocketChannel.isOpen()) {
                 System.out.println("Closing old socket connection...");
@@ -92,7 +116,7 @@ public class GameClient {
             System.err.println("Failed to close old connection: " + e.getMessage());
         }
 
-        // Start a reconnection loop
+        // Reconnection loop in a new thread
         new Thread(() -> {
             boolean reconnected = false;
             SocketChannel socketChannel = null;
@@ -100,30 +124,69 @@ public class GameClient {
             while (!reconnected) {
                 try {
                     System.out.println("Attempting to reconnect to server...");
-                    // Create a new connection
+                    // Establish a new SocketChannel
                     socketChannel = SocketChannel.open();
                     socketChannel.configureBlocking(true);
                     socketChannel.connect(new InetSocketAddress(SERVER_HOST, SERVER_PORT));
-
                     System.out.println("Reconnection successful!");
 
                     // Re-initialize the I/O streams
                     DataInputStream in = new DataInputStream(socketChannel.socket().getInputStream());
                     DataOutputStream out = new DataOutputStream(socketChannel.socket().getOutputStream());
 
-                    // Send the username back to the server
-                    out.writeUTF("Reconnect Request: " + mapGenerator.getHero().getName());
+                    // Notify the server of reconnection (send the hero's name)
+                    String heroName = mapGenerator.getHero().getName();
+                    out.writeUTF("Reconnect:" + heroName);
                     out.flush();
 
-                    // Read and process the server's response
+                    // Process the server's acknowledgment
                     String response = in.readUTF();
                     System.out.println("Server response after reconnection: " + response);
 
-                    // Resume listening for updates
-                    listenForServerUpdates(socketChannel, mapGenerator);
+                    if (response.contains("WELCOME_BACK")) {
+                        System.out.println("Reconnection acknowledged by server.");
 
-                    // Exit reconnection loop now that connection is restored
-                    reconnected = true;
+                        // Resume updates and interactions
+                        listenForServerUpdates(socketChannel, mapGenerator);
+
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "Successfully reconnected to the server!",
+                                    "Reconnection Successful",
+                                    JOptionPane.INFORMATION_MESSAGE
+                            );
+                        });
+                        reconnected = true; // Exit the loop
+                    } else {
+                        throw new IOException("Unexpected server response: " + response);
+                    }
+                    // After successful reconnection:
+                    // Request current hero position
+                    out.writeUTF("GET_HERO_POSITION");
+                    out.flush();
+
+                    // Server responds with "HERO_POSITION:x,y"
+                    String positionResponse = in.readUTF();
+                    if (positionResponse.startsWith("HERO_POSITION:")) {
+                        String[] xy = positionResponse.substring("HERO_POSITION:".length()).split(",");
+                        int x = Integer.parseInt(xy[0].trim());
+                        int y = Integer.parseInt(xy[1].trim());
+
+                        mapGenerator.getHero().setPosition(new Position(x, y));
+                        mapGenerator.repaint(); // Render updated position
+                    }
+                    // After reconnecting and syncing hero position
+                    out.writeUTF("GET_ENEMY_POSITIONS");
+                    out.flush();
+
+// Process the response from the server
+                    String enemyPositions = in.readUTF();
+                    if (enemyPositions.startsWith("ENEMY_UPDATE:")) {
+                        String enemyData = enemyPositions.substring("ENEMY_UPDATE:".length());
+                        updateEnemyPositionsOnMap(enemyData, mapGenerator);
+                        System.out.println("Enemy positions synchronized after reconnection.");
+                    }
 
                 } catch (IOException e) {
                     System.err.println("Reconnection failed: " + e.getMessage());
@@ -149,7 +212,7 @@ public class GameClient {
         }
 
         // Add components
-        frame.add(mapGenerator, BorderLayout.CENTER);
+        frame.add(mapGenerator.getScrollableMap(), BorderLayout.CENTER);
         ActionsPanel actionsPanel = new ActionsPanel(
                 mapGenerator.getHero(), mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
         frame.add(actionsPanel, BorderLayout.SOUTH);
@@ -170,9 +233,27 @@ public class GameClient {
                     if (in.available() > 0) {
                         String serverMessage = in.readUTF();
                         System.out.println("Server update received: " + serverMessage);
+                        if (serverMessage.startsWith("HERO_POSITION:")) {
+                            String positionData = serverMessage.substring("HERO_POSITION:".length());
+                            String[] xy = positionData.split(",");
+                            int x = Integer.parseInt(xy[0].trim());
+                            int y = Integer.parseInt(xy[1].trim());
 
+                            // Update hero's position
+                            SwingUtilities.invokeLater(() -> {
+                                mapGenerator.getHero().setPosition(new Position(x, y));
+                                mapGenerator.repaint(); // Ensure the new position is rendered
+                            });
+                            return;
+                        }
                         // Process server messages on the EDT
                         SwingUtilities.invokeLater(() -> processMessage(serverMessage, mapGenerator));
+
+                        if (serverMessage.startsWith("ENEMY_UPDATE:")) {
+                            String enemyData = serverMessage.substring("ENEMY_UPDATE:".length());
+                            updateEnemyPositionsOnMap(enemyData, mapGenerator);
+                            return;
+                        }
                     }
                 } catch (IOException e) { // Handle connection loss during reading
                     System.err.println("Error during server communication: " + e.getMessage());
@@ -214,17 +295,18 @@ public class GameClient {
         for (String pos : positions) {
             if (!pos.isEmpty()) {
                 String[] coords = pos.split(",");
-                int row = Integer.parseInt(coords[0]);
-                int col = Integer.parseInt(coords[1]);
+                int row = Integer.parseInt(coords[0].trim());
+                int col = Integer.parseInt(coords[1].trim());
 
-                // Update the map with the new enemy position
+                // Update the map display with the enemy position (e.g., "M" for monster)
                 mapGenerator.setContentAtPosition(new Position(row, col), "M");
             }
         }
 
-        mapGenerator.repaint(); // Refresh the map display
+        mapGenerator.repaint(); // Refresh the map display after all updates
     }
     public static GameClient createGameClient() {
         return new GameClient();
     }
+
 }

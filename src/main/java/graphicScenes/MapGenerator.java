@@ -15,6 +15,30 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * The MapGenerator class is responsible for generating and managing the game map,
+ * including its components such as enemies, treasures, the hero, and free positions.
+ * This class provides an interface to interact with the map, retrieve and manage
+ * its content, and handle the movement of entities within the game world.
+ * It also supports dynamic updates to the map based on the game's state.
+ *
+ * Fields:
+ * - ROWS: The number of rows in the game map grid.
+ * - COLS: The number of columns in the game map grid.
+ * - CELL_SIZE: The size of each individual cell in the grid.
+ * - map: A 2D string array representing the game map.
+ * - wallImage: The image path or reference used for representing wall elements in the map.
+ * - pathImage: The image path or reference used for representing paths in the map.
+ * - enemyImage: The image path or reference for representing enemies on the map.
+ * - treasureImage: The image path or reference for representing treasures on the map.
+ * - heroImage: The image path or reference for representing the hero on the map.
+ * - hero: The hero currently on the map.
+ * - enemies: A collection of Minion objects currently present on the map.
+ * - treasures: A collection of Treasure objects currently present on the map.
+ * - freePositions: A set of positions that are currently unoccupied and available for movement or placement.
+ * - enemyTimer: A timer used for managing enemy movements.
+ * - ENEMY_MOVE_INTERVAL: The interval used to control the timing of enemy movements.
+ */
 public class MapGenerator extends JPanel {
     private static final int ROWS = 20;
     private static final int COLS = 35;
@@ -573,7 +597,12 @@ public class MapGenerator extends JPanel {
 
         repaint(); // Refresh the map display to show enemy movements
     }
-
+    public JScrollPane getScrollableMap() {
+        JScrollPane scrollPane = new JScrollPane(this);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        return scrollPane;
+    }
     private void sendEnemyPositionsToClients(DataOutputStream out) {
         try {
             StringBuilder enemyPositions = new StringBuilder();
@@ -625,5 +654,6 @@ public class MapGenerator extends JPanel {
 
             }
         }
-    }
+
+}
 

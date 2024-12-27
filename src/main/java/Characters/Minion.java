@@ -2,6 +2,11 @@ package Characters;
 
 import java.util.Random;
 
+/**
+ * This class represents a Minion character in the game, extending the functionality
+ * of the CharImpl abstract implementation. A Minion is a non-playable entity with a
+ * randomly assigned level and associated attributes such as winning points.
+ */
 public class Minion extends CharImpl {
     private int level;
     private int winningPoints;

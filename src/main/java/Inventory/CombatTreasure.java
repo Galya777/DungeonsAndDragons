@@ -5,6 +5,12 @@ import Characters.Position;
 
 import java.awt.*;
 
+/**
+ * Represents a combat treasure in the game that provides both treasure functionality and combat benefits.
+ * CombatTreasure is a type of Treasure that can be collected, used, and interacted with by a hero in the game.
+ * It has additional attributes relevant to combat, such as attack points, level requirements, and experience points.
+ * This class serves as a base class for specific combat-related treasures (e.g., weapons, spells).
+ */
 public class CombatTreasure implements Treasure {
 
     protected Position position;

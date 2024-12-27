@@ -1,6 +1,11 @@
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * EventLogPanel is a custom JPanel used to display a log of events.
+ * It provides a read-only text area within a scrollable pane for listing events.
+ * Events can be added dynamically using the addEvent method.
+ */
 public class EventLogPanel extends JPanel {
     private JTextArea eventLog;
 

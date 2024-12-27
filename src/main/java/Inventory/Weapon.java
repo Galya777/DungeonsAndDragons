@@ -4,6 +4,10 @@ import Characters.Hero;
 import Characters.Position;
 
 
+/**
+ * Represents a weapon in the game, which is a type of combat treasure.
+ * A weapon can be equipped by a hero and enhances their attack capabilities.
+ */
 public class Weapon extends CombatTreasure {
 
     Weapon(String name, int level, int attack, int experience, Position position) {

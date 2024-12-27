@@ -7,6 +7,11 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+/**
+ * The RegistrationWindow class represents a graphical user interface (GUI) window
+ * for registering a username before starting a game. It extends the JFrame class
+ * and provides fields and controls for entering a username and initiating gameplay.
+ */
 public class RegistrationWindow extends JFrame {
     private JTextField usernameField;
     private JButton playButton;

@@ -8,6 +8,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+/**
+ * The Hero class represents a powerful character in a game, capable of performing various actions
+ * such as collecting treasures, equipping weapons, learning spells, and gaining experience. It
+ * extends the CharImpl class, inheriting core character properties and behaviors.
+ *
+ * The Hero class manages its interactions with a backpack for inventory, a level system for
+ * progression, and a stats for health and mana management. The Hero can also engage in battles
+ * and drop loot upon defeat.
+ */
 public class Hero extends CharImpl{
     private Level level;
     private Backpack backpack;
@@ -152,6 +161,7 @@ public class Hero extends CharImpl{
     }
 
 
-
-
+    public void setPosition(Position position) {
+        this.position = position;
+    }
 }

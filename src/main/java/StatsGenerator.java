@@ -1,6 +1,10 @@
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * A panel for displaying and updating character statistics including health, attack, and defense.
+ * This class extends JPanel and organizes the labels in a vertical grid layout.
+ */
 public class StatsGenerator extends JPanel {
     private JLabel healthLabel;
     private JLabel attackLabel;

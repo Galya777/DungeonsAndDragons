@@ -11,6 +11,31 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+/**
+ * The ActionsPanel class represents a graphical user interface panel that facilitates interaction
+ * between the user and the application's functionality, including command execution, server communication,
+ * and player movement. It is designed as part of a game application with components for hero actions,
+ * communication with a server, and user input handling.
+ *
+ * Key functionalities include:
+ * - Sending user commands (e.g., "COLLECT", "GIVE", "BATTLE") to the server and receiving responses.
+ * - Providing a graphical interface for backpack management, such as checking, using, or discarding items.
+ * - Player movement handling through keyboard input.
+ * - Displaying server responses and messages in a non-editable text area.
+ *
+ * The panel integrates with other game components, such as the PlayerMoving and CommandExecutor classes,
+ * and communicates with a server through socket channels to send and receive data. It uses Swing components
+ * for building the user interface.
+ *
+ * Constructor throws exceptions for invalid hero initialization or if the provided socket channel
+ * connection is not open.
+ *
+ * Usage considerations:
+ * - Ensure the provided Hero, MapGenerator, and SocketChannel objects are valid and initialized before
+ *   creating an instance of this panel.
+ * - All server communication relies on the input and output streams provided during instantiation.
+ * - The panel consumes key events for movement, so it should remain in focus during gameplay.
+ */
 public class ActionsPanel extends JPanel {
     private UserRecipient userRecipient;
     private JTextArea outputArea;

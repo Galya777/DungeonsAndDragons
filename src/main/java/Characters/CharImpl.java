@@ -8,6 +8,13 @@ import java.awt.*;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * The CharImpl class is an implementation of the Character interface,
+ * representing a character in the game world. It provides attributes and behaviors
+ * that define the character's state, such as position, health, weapons, spells, and
+ * the ability to attack and take damage. It also supports rendering the character's
+ * sprite on a graphical interface.
+ */
 public class CharImpl implements Character {
     private static final int NO_ATTACK_POINTS = 0;
     private String name;

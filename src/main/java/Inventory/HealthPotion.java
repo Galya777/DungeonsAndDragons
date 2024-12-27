@@ -3,6 +3,11 @@ package Inventory;
 import Characters.Hero;
 import Characters.Position;
 
+/**
+ * HealthPotion is a specific type of Potion designed to restore health points to a Hero.
+ * This class extends the Potion class and provides functionality for healing and interaction
+ * with Hero objects in the game.
+ */
 public class HealthPotion extends Potion {
 
 

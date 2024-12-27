@@ -6,6 +6,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Represents a backpack used to store treasures.
+ * A backpack has a fixed capacity and allows for treasures to be added, removed,
+ * or listed. It provides utility methods to manage its contents.
+ */
 public class Backpack {
     private static final int CAPACITY = 10;
     private int numberOfItems;

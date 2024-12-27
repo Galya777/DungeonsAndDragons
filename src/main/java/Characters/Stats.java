@@ -1,6 +1,18 @@
 package Characters;
 
 
+/**
+ * The Stats class represents the core attributes of a character, such as health, mana, attack, and defense.
+ * It provides functionality to manipulate these attributes based on various scenarios, such as taking damage,
+ * using resources, leveling up, or healing.
+ *
+ * The Stats class uses initial constants to define the default values for attributes and handles
+ * attribute scaling with level changes or specified increments. It ensures attributes stay within
+ * defined limits and maintains the character's overall state, such as whether they are alive.
+ *
+ * This class uses a singleton factory design pattern allowing controlled instance creation through
+ * a dedicated static method.
+ */
 public class Stats {
 
     private int health;

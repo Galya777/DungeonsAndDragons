@@ -14,6 +14,18 @@ import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.Queue;
 
+/**
+ * The PlayerRepository class is responsible for managing the registration and removal of players
+ * in the game, as well as maintaining the state of active players and their associated data.
+ * It provides functionality for storing and retrieving players based on their network connections
+ * and ensures the enforcement of constraints such as unique player names and server capacity.
+ *
+ * Key responsibilities include:
+ * - Registering new players while ensuring unique usernames and not exceeding server capacity.
+ * - Removing players and updating game state, such as freeing up positions and resources.
+ * - Mapping network connections (SocketChannel) to player entities (Hero).
+ * - Providing access to active player information, such as their socket channels or hero data.
+ */
 public class PlayerRepository {
 
     private static final String WELCOME_MESSAGE = ", welcome to <DUNGEONS ONLINE>! Ready to spill some blood?";

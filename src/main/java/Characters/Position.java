@@ -1,5 +1,10 @@
 package Characters;
 
+/**
+ * Represents a position in a two-dimensional grid with row and column indices.
+ * Provides methods to get and set the row and column values as well as
+ * utilities for object comparison and string representation.
+ */
 public class Position {
     private int row;
     private int col;

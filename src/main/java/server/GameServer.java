@@ -17,6 +17,19 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Represents a multi-threaded game server that handles player connections,
+ * game state updates, and command execution. The server supports dynamic client
+ * registration, reconnection, and real-time broadcasting of game map updates.
+ *
+ * The server employs non-blocking I/O to handle multiple client connections simultaneously.
+ * Key responsibilities include:
+ * 1. Accepting new client connections.
+ * 2. Processing player commands.
+ * 3. Broadcasting updates to all connected users.
+ * 4. Managing resources such as socket channels and thread pools.
+ * 5. Shutting down gracefully on termination.
+ */
 public class GameServer {
     private static final String SERVER_HOST = System.getenv("SERVER_HOST") != null ? System.getenv("SERVER_HOST") : "0.0.0.0";
     public static final int SERVER_PORT = System.getenv("SERVER_PORT") != null ? Integer.parseInt(System.getenv("SERVER_PORT")) : 8080;
@@ -24,21 +37,21 @@ public class GameServer {
 
     private static final Logger LOGGER = Logger.getLogger(GameServer.class.getName());
 
-    private CommandExecutor commandExecutor;
+    CommandExecutor commandExecutor;
     private ServerSocketChannel serverSocketChannel;
     private Selector selector;
     private ByteBuffer buffer;
     private ExecutorService executorService = Executors.newFixedThreadPool(10);
-    private PlayerRepository playerRepository;
+    PlayerRepository playerRepository;
     private MapGenerator mapGenerator;
 
     private boolean enemyMovementStarted = false; // Track if enemy movement has started
 
     private static int nextHeroId = 1; // Static counter for unique IDs
 
-    private boolean running = true; // Server running state
+    boolean running = true; // Server running state
 
-    private GameServer(MapGenerator gameRepository) {
+    GameServer(MapGenerator gameRepository) {
         this.executorService = Executors.newFixedThreadPool(10);
         this.mapGenerator = gameRepository;
         this.commandExecutor = new CommandExecutor(gameRepository);
@@ -88,7 +101,7 @@ public class GameServer {
         }
     }
 
-    private void registerHero(SocketChannel socketChannel, String heroName) {
+    void registerHero(SocketChannel socketChannel, String heroName) {
         try {
             if (!isConnectionValid(socketChannel)) {
                 LOGGER.warning("Cannot register hero. Connection is invalid: " + socketChannel);
@@ -153,7 +166,7 @@ public class GameServer {
     private boolean isConnectionValid(SocketChannel channel) {
         return channel != null && channel.isOpen() && channel.isConnected();
     }
-    private void acceptFromKey(SelectionKey key) {
+    void acceptFromKey(SelectionKey key) {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
             SocketChannel socketChannel = serverSocketChannel.accept();
@@ -226,7 +239,7 @@ public class GameServer {
         }
     }
 
-    private void broadcastMapUpdates(String updateMessage) {
+    void broadcastMapUpdates(String updateMessage) {
         for (SocketChannel socketChannel : commandExecutor.getSocketChannelsFromRepository()) {
             try {
                 // Skip clients with invalid connections
@@ -260,7 +273,7 @@ public class GameServer {
         }
     }
 
-    private void shutdown() {
+    void shutdown() {
         running = false;
         try {
             if (selector != null && selector.isOpen()) {
