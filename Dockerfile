@@ -10,7 +10,7 @@ COPY . /app
 # Compile and build your game (if needed)
 # RUN ./gradlew build (if you're using Gradle)
 # For now, include any pre-built `.jar` file
-COPY build/libs/multiplayer-game.jar /app/app.jar
+COPY out/artifacts/DungeonsAndDragons_jar/DungeonsAndDragons.jar /app/
 
 # Expose the port your game listens on
 EXPOSE 8080

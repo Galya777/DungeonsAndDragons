@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dungeons-and-dragons
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dungeons-and-dragons
+  template:
+    metadata:
+      labels:
+        app: dungeons-and-dragons
+    spec:
+      containers:
+        - name: dungeons-and-dragons
+          image: dungeons-and-dragons:latest
+          ports:
+            - containerPort: 8080
