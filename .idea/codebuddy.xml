@@ -56,6 +56,9 @@
         <option value="only with yes or no, do I handle game over?" />
         <option value="yes" />
         <option value="I do not get it. I made a change in the logic for checking if there is a minion on the current position. but it seems in the battle command, getMinionAtPosition cannot find the minion, eventhough it is at the same position as the hero " />
+        <option value="go ahead" />
+        <option value="I want battle results to be printed on the event handler on the GUI " />
+        <option value="go ahead" />
       </list>
     </option>
     <option name="selectedModel" value="codebuddy:GPT_4_Omni_Mini_V7" />

@@ -118,6 +118,8 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         battleButton.addActionListener(e -> {
             BattleCommand battleCommand = new BattleCommand(hero, new String[] {}, mapGenerator);
             String response = battleCommand.execute(userRecipient);
+            String  response2 = battleCommand.executeBattleWithMinion();
+            outputArea.append(response + "\n" + response2 + "\n");
             outputArea.append(response + "\n");
             requestFocus();
         });
