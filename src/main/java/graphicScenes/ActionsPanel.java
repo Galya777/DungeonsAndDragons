@@ -40,13 +40,13 @@ import java.util.Map;
  */
 public class ActionsPanel extends JPanel implements AutoCloseable {
     private UserRecipient userRecipient;
-    private JTextArea outputArea;
     private CommandExecutor commandExecutor;
     private PlayerMoving playerMoving;
     private DataInputStream in;
     private DataOutputStream out;
     private SocketChannel socketChannel; // Added as a field for validation.
     private final GameState gameState;
+    private EventLogPanel eventLogPanel; // Added for event logging
 
     public ActionsPanel(Hero hero, MapGenerator mapGenerator, SocketChannel socketChannel, ByteBuffer bufferSend,
                         DataInputStream in, DataOutputStream out) throws IllegalArgumentException, IOException {
@@ -68,9 +68,8 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         this.setLayout(new BorderLayout());
 
         // Initialize components
-        outputArea = new JTextArea(10, 30);
-        outputArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(outputArea);
+
+        JScrollPane scrollPane = new JScrollPane();
 
         // Create buttons for commands
         JButton backpackButton = new JButton("Backpack");
@@ -87,7 +86,7 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         collectButton.addActionListener(e -> {
             CollectCommand collectCommand = new CollectCommand(hero, new String[] {}, mapGenerator);
             String response = collectCommand.execute(userRecipient);
-            outputArea.append(response + "\n");
+            eventLogPanel.addEvent(response+ "\n"); // Log the event
             requestFocus();
         });
 
@@ -106,10 +105,10 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
                     if (targetPlayer != null && !targetPlayer.trim().isEmpty()) {
                         GiveCommand giveCommand = new GiveCommand(hero, new String[] {"GIVE", treasureName, targetPlayer}, newOne);
                         String response = giveCommand.execute(userRecipient);
-                        outputArea.append(response + "\n");
+                        eventLogPanel.addEvent(response+ "\n"); // Log the event
                     }
                 } else {
-                    outputArea.append("That treasure is not in your backpack.\n");
+                    eventLogPanel.addEvent("That treasure is not in your backpack."+ "\n"); // Log the event
                 }
             }
             requestFocus(); // Maintain focus for keyboard input
@@ -119,8 +118,8 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
             BattleCommand battleCommand = new BattleCommand(hero, new String[] {}, mapGenerator);
             String response = battleCommand.execute(userRecipient);
             String  response2 = battleCommand.executeBattleWithMinion();
-            outputArea.append(response2 + "\n");
-            outputArea.append(response + "\n");
+            eventLogPanel.addEvent(response2 + "\n"); // Log the event
+            eventLogPanel.addEvent(response+ "\n"); // Log the event
             requestFocus();
         });
         // Create panel for buttons
@@ -133,6 +132,8 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         // Add components to main panel
         this.add(buttonPanel, BorderLayout.NORTH);
         this.add(scrollPane, BorderLayout.CENTER);
+        eventLogPanel = new EventLogPanel(); // Initialize event log panel
+        this.add(eventLogPanel, BorderLayout.SOUTH); // Add event log panel to the layout
 
         // Initialize PlayerMoving
         this.playerMoving = new PlayerMoving(hero, socketChannel, mapGenerator, bufferSend);
@@ -206,10 +207,12 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
                 }
                  
                 SwingUtilities.invokeLater(() -> {
-                    outputArea.append(response + "\n");
+                    eventLogPanel.addEvent(response+ "\n"); // Log the event
                 });
             } catch (IOException e) {
-                SwingUtilities.invokeLater(() -> outputArea.append("Error executing command: " + action + ". Error: " + e.getMessage() + "\n"));
+                SwingUtilities.invokeLater(() -> {
+                    eventLogPanel.addEvent("Error executing command: " + action + ". Error: " + e.getMessage()+ "\n"); // Log the event
+                });
                 e.printStackTrace();
             }
         }).start();
@@ -231,9 +234,9 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
             // Update UI with response
             SwingUtilities.invokeLater(() -> {
                 if (response != null && !response.isEmpty()) {
-                    outputArea.append("Backpack Response: " + response + "\n");
+                    eventLogPanel.addEvent("Backpack Response: " + response+ "\n"); // Log the event
                 } else {
-                    outputArea.append("No response from backpack command\n");
+                    eventLogPanel.addEvent("No response from backpack command"+ "\n"); // Log the event
                 }
             });
         }).start();

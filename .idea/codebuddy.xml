@@ -59,6 +59,10 @@
         <option value="go ahead" />
         <option value="I want battle results to be printed on the event handler on the GUI " />
         <option value="go ahead" />
+        <option value="only yes or no, do you think the project is ready for deployment?" />
+        <option value="check then" />
+        <option value="yes" />
+        <option value="yes, proceed it" />
       </list>
     </option>
     <option name="selectedModel" value="codebuddy:GPT_4_Omni_Mini_V7" />
