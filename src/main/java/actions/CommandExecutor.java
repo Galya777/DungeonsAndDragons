@@ -38,18 +38,13 @@ public class CommandExecutor {
             throw new IllegalStateException("Hero is null for SocketChannel: " + socketChannel);
         }
 
-        switch (firstCommandAsEnum) {
-            case BACKPACK:
-                return new BackpackCommand(hero, splitCommand, MapGenerator);
-            case GIVE:
-                return new GiveCommand(hero, splitCommand, playerRepository.getHeroBySocketChannel());
-            case COLLECT:
-                return new CollectCommand(hero, splitCommand, MapGenerator);
-            case BATTLE:
-                return new BattleCommand(hero, splitCommand, playerRepository, MapGenerator);
-            default:
-                return null;
-        }
+        return switch (firstCommandAsEnum) {
+            case BACKPACK -> new BackpackCommand(hero, splitCommand, MapGenerator);
+            case GIVE -> new GiveCommand(hero, splitCommand, playerRepository.getHeroBySocketChannel());
+            case COLLECT -> new CollectCommand(hero, splitCommand, MapGenerator);
+            case BATTLE -> new BattleCommand(hero, splitCommand, MapGenerator);
+            default -> null;
+        };
     }
 
     public String checkCommandForRepositoryUpdate(String[] splitCommand, CommandType firstCommandAsEnum,

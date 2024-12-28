@@ -44,8 +44,20 @@
         <option value="give command works perfectly. one more little anoying change. Make every message to appear on a new line, please. I can do it myself but the problem is it is too annoying and you can automate this process in seconds " />
         <option value="you here?" />
         <option value="give command works perfectly. one more little anoying change. Make every message to appear on a new line, please. I can do it myself but the problem is it is too annoying and you can automate this process in seconds" />
+        <option value="yes, proceed, please" />
+        <option value="I know this is really hard task but try to help me fix the battle command. It is not working propertly. When my hero is on a field with a minion on it, instead, of fighting, the command says there is no player, which means the statement that there is a minion returned false (even if there is a minion on that field)" />
+        <option value="yes, dive deeper" />
+        <option value="why messages are printed twice? fix this. also, the battle button is working only on fields with minions on them (which is great) but instead of beating with them, it check for other players. fix this as well " />
+        <option value="yes" />
+        <option value="please, check the battle command. it is not working at all. try do debug it, please " />
+        <option value="just do it" />
+        <option value="why if there is a minion on a position, the battle command cannot find it? Investigate it carefully and gelp me fix the issue " />
+        <option value="just do it" />
+        <option value="only with yes or no, do I handle game over?" />
+        <option value="yes" />
+        <option value="I do not get it. I made a change in the logic for checking if there is a minion on the current position. but it seems in the battle command, getMinionAtPosition cannot find the minion, eventhough it is at the same position as the hero " />
       </list>
     </option>
-    <option name="selectedModel" value="codebuddy:CLAUDE_3.5_SONNET_V7" />
+    <option name="selectedModel" value="codebuddy:GPT_4_Omni_Mini_V7" />
   </component>
 </project>

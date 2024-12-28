@@ -4,6 +4,7 @@ import Characters.Character;
 import Characters.Hero;
 import Characters.Minion;
 import Characters.Position;
+import Inventory.Treasure;
 import graphicScenes.MapGenerator;
 
 import java.nio.channels.SocketChannel;
@@ -28,13 +29,12 @@ public class BattleCommand extends CommandImpl {
 
     private static final int MAX_BATTLE_ROUNDS = 10;
 
-    private PlayerRepository playerRepository;
+    private PlayerRepository playerRepository = new PlayerRepository();
     private MapGenerator gameRepository;
     boolean isDraw;
 
-    public BattleCommand(Hero hero, String[] splitCommand, PlayerRepository playerRepositroy, MapGenerator gameRepository) {
+    public BattleCommand(Hero hero, String[] splitCommand, MapGenerator gameRepository) {
         super(hero, splitCommand);
-        this.playerRepository = playerRepositroy;
         this.gameRepository = gameRepository;
     }
 
@@ -76,10 +76,9 @@ public class BattleCommand extends CommandImpl {
 
     public String executeBattleWithMinion() {
         Position heroPosition = hero.getPosition();
-        if (!gameRepository.mapHasMinionAtPosition(heroPosition)) {
-            return NO_MINION_AT_POSITION_MESSAGE;
-        }
+        System.out.println("Hero Position: " + heroPosition); // Debugging output
         Minion minion = gameRepository.getMinionAtPosition(heroPosition);
+        System.out.println("Has Minion at Position: " + (minion != null)); // Debugging output
         if (minion == null) {
             return NO_MINION_AT_POSITION_MESSAGE;
         }
@@ -137,10 +136,13 @@ public class BattleCommand extends CommandImpl {
 
     @Override
     public String execute(UserRecipient userRecipient) {
-        if (gameRepository.mapHasMinionAtPosition(hero.getPosition())) {
-            return executeBattleWithMinion();
-        }
-        else return executeBattleWithPlayer(userRecipient);
-    }
 
+        Minion minion = gameRepository.getMinionAtPosition(hero.getPosition());
+        if (minion != null) {
+         return executeBattleWithMinion(); // Prioritize battling minion
+        }
+        // Check for player only if no minion is present
+        return executeBattleWithPlayer(userRecipient);
+
+    }
 }

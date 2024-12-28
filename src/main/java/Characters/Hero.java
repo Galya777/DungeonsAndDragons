@@ -3,6 +3,7 @@ package Characters;
 import Inventory.Spell;
 import Inventory.Treasure;
 import Inventory.Weapon;
+import game.GameState;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -145,7 +146,7 @@ public class Hero extends CharImpl {
         }
         if (getHealth() <= 0) {
             System.out.println("Game Over!"); // Debug message
-            gameOver(); // Call the game-over logic
+            GameState.getInstance().stopGame(); // Call the game-over logic
         } else {
             System.out.println("Hero's updated health: " + getHealth()); // Debug message
         }

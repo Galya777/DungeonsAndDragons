@@ -127,7 +127,6 @@ public class MapGenerator extends JPanel {
     }
 
     public Minion getMinionAtPosition(Position position) {
-        if (!mapHasMinionAtPosition(position)) return null;
         return enemies.stream().filter(minion -> minion.getPosition().equals(position)).findFirst().orElse(null);
     }
     public List<Position> getEnemyPositions() {

@@ -87,7 +87,6 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         collectButton.addActionListener(e -> {
             CollectCommand collectCommand = new CollectCommand(hero, new String[] {}, mapGenerator);
             String response = collectCommand.execute(userRecipient);
-            outputArea.setText(response);
             outputArea.append(response + "\n");
             requestFocus();
         });
@@ -107,11 +106,9 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
                     if (targetPlayer != null && !targetPlayer.trim().isEmpty()) {
                         GiveCommand giveCommand = new GiveCommand(hero, new String[] {"GIVE", treasureName, targetPlayer}, newOne);
                         String response = giveCommand.execute(userRecipient);
-                        outputArea.setText(response);
                         outputArea.append(response + "\n");
                     }
                 } else {
-                    outputArea.setText("That treasure is not in your backpack.");
                     outputArea.append("That treasure is not in your backpack.\n");
                 }
             }
@@ -119,11 +116,8 @@ public class ActionsPanel extends JPanel implements AutoCloseable {
         });
 
         battleButton.addActionListener(e -> {
-            PlayerRepository playerRepository = new PlayerRepository();
-            playerRepository.updateRepository(hero, mapGenerator);
-            BattleCommand battleCommand = new BattleCommand(hero, new String[] {}, playerRepository, mapGenerator);
+            BattleCommand battleCommand = new BattleCommand(hero, new String[] {}, mapGenerator);
             String response = battleCommand.execute(userRecipient);
-            outputArea.setText(response);
             outputArea.append(response + "\n");
             requestFocus();
         });

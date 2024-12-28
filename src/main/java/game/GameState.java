@@ -68,6 +68,11 @@ public class GameState {
         notifyListeners(GameEvent.GAME_STOPPED, null);
     }
 
+    public void gameOver() {
+        stopGame(); // Stop the game when called
+        // Additional game over logic can be added here
+    }
+
     public boolean isGameRunning() {
         return gameRunning.get();
     }
