@@ -23,7 +23,7 @@ public class GiveCommand extends CommandImpl {
 
     public Map<SocketChannel, Hero> heroBySocketChannel;
 
-    GiveCommand(Hero hero, String[] splitCommand, Map<SocketChannel, Hero> heroBySocketChannel) {
+    public GiveCommand(Hero hero, String[] splitCommand, Map<SocketChannel, Hero> heroBySocketChannel) {
         super(hero, splitCommand);
         this.heroBySocketChannel = heroBySocketChannel;
     }

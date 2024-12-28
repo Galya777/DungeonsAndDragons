@@ -4,6 +4,7 @@ import Characters.*;
 import Characters.Character;
 import graphicScenes.ActionsPanel;
 import graphicScenes.MapGenerator;
+import graphicScenes.StatsGenerator;
 import server.GameServer;
 
 import javax.swing.*;
@@ -31,6 +32,23 @@ public class GameClient {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 8080;
     private static final int BUFFER_SIZE = 1024;
+
+
+    /**
+     * Initiates the game client by establishing a connection to the game server and handling the player's registration.
+     *
+     * This method performs the following actions:
+     * - Opens a SocketChannel to connect to the server using the specified host and port.
+     * - Sends the player's username to the server for registration.
+     * - Receives the server's response and processes the registration confirmation.
+     * - Extracts the hero's position from the server's response and creates a Hero object.
+     * - Initializes the MapGenerator with the newly created Hero.
+     * - Launches the graphical user interface (GUI) on the Event Dispatch Thread.
+     *
+     * The method handles IOExceptions that may occur during the network communication or GUI initialization.
+     *
+     * @param username The username of the player to register with the server.
+     */
 
     public void startGame(String username) {
         final SocketChannel socketChannel;
@@ -185,6 +203,7 @@ public class GameClient {
                     if (enemyPositions.startsWith("ENEMY_UPDATE:")) {
                         String enemyData = enemyPositions.substring("ENEMY_UPDATE:".length());
                         updateEnemyPositionsOnMap(enemyData, mapGenerator);
+                        mapGenerator.updateEnemyPositions();
                         System.out.println("Enemy positions synchronized after reconnection.");
                     }
 
@@ -216,7 +235,8 @@ public class GameClient {
         ActionsPanel actionsPanel = new ActionsPanel(
                 mapGenerator.getHero(), mapGenerator, socketChannel, ByteBuffer.allocate(BUFFER_SIZE), in, out);
         frame.add(actionsPanel, BorderLayout.SOUTH);
-
+       StatsGenerator statsGenerator = new StatsGenerator();
+        frame.add(statsGenerator, BorderLayout.EAST);
         // Force GUI rendering
         frame.setVisible(true);
         frame.revalidate(); // Ensure layout updates
@@ -300,6 +320,7 @@ public class GameClient {
 
                 // Update the map display with the enemy position (e.g., "M" for monster)
                 mapGenerator.setContentAtPosition(new Position(row, col), "M");
+                mapGenerator.updateEnemyPositions(); // Ensure the enemy's position is rendered in the map'
             }
         }
 

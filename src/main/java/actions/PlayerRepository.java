@@ -48,6 +48,10 @@ public class PlayerRepository {
         }
     }
 
+    public static PlayerRepository getInstance() {
+        return new PlayerRepository();
+    }
+
     public Hero getHeroByGivenSocketChannel(SocketChannel socketChannel) {
         Hero hero = heroBySocketChannel.get(socketChannel);
         if (hero == null) {

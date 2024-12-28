@@ -11,9 +11,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
+/**
+ * The BattleCommand class represents a command that initiates a battle between a hero and an enemy.
+ * It determines the outcome of the battle based on the hero's and enemy's stats.
+ */
+
+
 
 public class BattleCommand extends CommandImpl {
-
+        /**
+         * Initiates a battle between the hero and the enemy.
+         * @param hero the hero participating in the battle
+         * @param enemy the enemy participating in the battle
+         * @return true if the hero wins, false otherwise
+         */
     private static final String NO_MINION_AT_POSITION_MESSAGE = "There is no minion to battle here.";
     static final String NO_PLAYER_AT_POSITION_MESSAGE = "There is no player to battle here.";
     public static final String HERO_WON_MESSAGE = "The enemy is dead. You won. ";
@@ -29,7 +40,7 @@ public class BattleCommand extends CommandImpl {
     private MapGenerator gameRepository;
     boolean isDraw;
 
-    BattleCommand(Hero hero, String[] splitCommand, PlayerRepository playerRepositroy, MapGenerator gameRepository) {
+    public BattleCommand(Hero hero, String[] splitCommand, PlayerRepository playerRepositroy, MapGenerator gameRepository) {
         super(hero, splitCommand);
         this.playerRepository = playerRepositroy;
         this.gameRepository = gameRepository;
@@ -59,7 +70,7 @@ public class BattleCommand extends CommandImpl {
         return false;
     }
 
-    public String executeBattleWithMinion(UserRecipient userRecipient) {
+    public String executeBattleWithMinion() {
         Position heroPosition = hero.getPosition();
         Minion minion = gameRepository.getMinionAtPosition(heroPosition);
         if (minion == null) {
@@ -120,11 +131,9 @@ public class BattleCommand extends CommandImpl {
     @Override
     public String execute(UserRecipient userRecipient) {
         if (gameRepository.mapHasMinionAtPosition(hero.getPosition())) {
-            return executeBattleWithMinion(userRecipient);
+            return executeBattleWithMinion();
         }
-
-        return executeBattleWithPlayer(userRecipient);
-
+        else return executeBattleWithPlayer(userRecipient);
     }
 
 }
