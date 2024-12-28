@@ -31,6 +31,10 @@ public interface Character {
 
         boolean takeDamage(int damagePoints);
 
+        boolean attemptDodge();
+        
+        int calculateDamage();
+
         int giveExperiencePointsAfterBattle();
 
         int attack();

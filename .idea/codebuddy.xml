@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CodebuddyPersistentProjectState">
+    <option name="audioEnabled" value="false" />
+    <option name="promptHistory">
+      <list>
+        <option value="hello, please help me with my project. Could you be good enough to scan it for bugs and tell me what you found" />
+        <option value="ok, let's start resolving these issues then. Choose one and provide me a step by step solution to it " />
+        <option value="in your implementation there are 2 errors, please fix this" />
+        <option value="fix these. also, I am a madam" />
+        <option value="go ahead" />
+        <option value="let's continue with our tasks" />
+        <option value="well, you decide. both are important but let's do them one by one" />
+        <option value="perfect " />
+        <option value="yes, I am ready" />
+        <option value="let's do them one by one. choose what you prefer to do now" />
+        <option value="yes, i am " />
+        <option value="yes, move on" />
+        <option value="we had a plan. follow it, please" />
+        <option value="review what we have already done" />
+        <option value="go on the old plan, please" />
+        <option value="what is according to the plan?" />
+        <option value="you have scaned the project and told me what can be improved" />
+        <option value="move forward, please" />
+        <option value="it seems you broke my movement. I fixed it but be careful. I need ai movement to the minions. I have written some functions about this but they are not working. check them and try to implement the moving of the minions " />
+        <option value="start coding, please " />
+        <option value="i do not want to make you sad but this is not working at all " />
+        <option value="yes, I am OK " />
+        <option value="ok. let's focus on the buttons. Backpack is not working for some reason, give sais it is invalid command and battle is not finding properly if there is a minion on the field. Any suggestions here?" />
+        <option value="why player id but treasure not found? battle command still not working properly and the backpack one not tested yet. " />
+        <option value="all at once. no error messages received " />
+        <option value="try solving the issues " />
+        <option value="whole plan " />
+        <option value="implement the fixes, please " />
+        <option value="&#10;java.io.IOException: Cannot execute backpack command. The connection to the server is closed.&#10;&#9;at graphicScenes.ActionsPanel.lambda$executeBackpackCommand$12(ActionsPanel.java:212)&#10;&#9;at java.base/java.lang.Thread.run(Thread.java:1623)&#10;Reconnection failed: Unexpected server response: REGISTERED:HERO_AT(99,61) there is an error message for the beackpack command. The other thinga are not fixed as well " />
+        <option value="try fixing the backpack command for start, please" />
+        <option value="yes, it sounds perfect" />
+        <option value="small change, make every text typing not key sensitive" />
+        <option value="yes, implement the change, please" />
+        <option value="i think it is better than before but in the backpack window whenever I press which of the three buttons, there is a messaga that says me the command is invalid. Investigate adn fix this " />
+        <option value="go ahead, please" />
+        <option value="thanks. backpack command is fixed. Let's fix the give command. It is confusing that it wants a player id but responds with treasure not found" />
+        <option value="go ahead" />
+        <option value="give command works perfectly. one more little anoying change. Make every message to appear on a new line, please. I can do it myself but the problem is it is too annoying and you can automate this process in seconds " />
+        <option value="you here?" />
+        <option value="give command works perfectly. one more little anoying change. Make every message to appear on a new line, please. I can do it myself but the problem is it is too annoying and you can automate this process in seconds" />
+      </list>
+    </option>
+    <option name="selectedModel" value="codebuddy:CLAUDE_3.5_SONNET_V7" />
+  </component>
+</project>

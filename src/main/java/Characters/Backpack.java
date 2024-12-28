@@ -45,12 +45,15 @@ public class Backpack {
 
     public String throwItem(String item) {
         if (item != null) {
+            item = item.toLowerCase();
             if (isEmpty()) {
                 return EMPTY_BACKPACK_MESSAGE;
             }
-
-            return (items.get(item) != null) ? item + THROWN_FROM_BACKPACK_MESSAGE : NOT_IN_BACKPACK_MESSAGE;
-
+            String finalItem = item;
+            return items.values().stream()
+                    .anyMatch(t -> t.getName().toLowerCase().equals(finalItem))
+                    ? item + THROWN_FROM_BACKPACK_MESSAGE 
+                    : NOT_IN_BACKPACK_MESSAGE;
         }
 
         throw new IllegalArgumentException(NULL_ARGUMENT_MESSAGE);
@@ -81,12 +84,14 @@ public class Backpack {
     }
 
     public Treasure getItem(String name) {
-        if (name == null) {
-            throw new IllegalArgumentException(NULL_ARGUMENT_MESSAGE);
-        }
-
-        Treasure item = items.remove(name);
+        name = name.toLowerCase();
+        String finalName = name;
+        Treasure item = items.values().stream()
+                .filter(t -> t.getName().toLowerCase().equals(finalName))
+                .findFirst()
+                .orElse(null);
         if (item != null) {
+            items.remove(item.getName());
             numberOfItems--;
         }
 

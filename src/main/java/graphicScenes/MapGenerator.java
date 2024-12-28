@@ -127,6 +127,7 @@ public class MapGenerator extends JPanel {
     }
 
     public Minion getMinionAtPosition(Position position) {
+        if (!mapHasMinionAtPosition(position)) return null;
         return enemies.stream().filter(minion -> minion.getPosition().equals(position)).findFirst().orElse(null);
     }
     public List<Position> getEnemyPositions() {
@@ -177,6 +178,7 @@ public class MapGenerator extends JPanel {
             int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}; // Up, Down, Left, Right
             Random random = new Random();
             
+            synchronized(this) {
             for (int i = 0; i < 4; i++) { // Try all directions
                 int[] direction = directions[random.nextInt(directions.length)];
                 int newRow = enemy.getPosition().getRow() + direction[0];
@@ -191,14 +193,17 @@ public class MapGenerator extends JPanel {
                     break;
                 }
             }
+            }
         }
     
         // New method to move all enemies
         public void moveAllEnemies() {
+            synchronized(this) {
             for (Minion enemy : enemies) {
                 moveEnemyRandomly(enemy);
             }
             repaint(); // Redraw the map after moving enemies
+            }
         }
         public synchronized void updateMap(String fullMap) {
             // Parse the map rows from the `fullMap` string
@@ -218,7 +223,8 @@ public class MapGenerator extends JPanel {
         }
     
         public boolean mapHasMinionAtPosition(Position position) {
-            return Objects.equals(map[position.getRow()][position.getCol()], "M");
+            String cellContent = map[position.getRow()][position.getCol()];
+            return cellContent != null && cellContent.contains("M");
         }
     
         public void updateDeadHeroAtPosition(Position position, String idToBeRemoved, Treasure treasure) {
@@ -574,45 +580,49 @@ public class MapGenerator extends JPanel {
         public synchronized void moveEnemies(DataOutputStream out) {
             Random random = new Random();
             List<Minion> toRemove = new ArrayList<>(); // Track minions to remove
+            int visionRange = 5; // How far enemies can "see" the hero
     
             for (Minion enemy : enemies) {
-                Position currentPos = enemy.getPosition(); // Get the enemy's current position
+                Position currentPos = enemy.getPosition();
                 Position newPos = null;
-                int maxTries = 10; // Give up after 10 failed attempts
+                int maxTries = 4; // Give up after 4 failed attempts
                 int tries = 0;
     
                 System.out.println("Processing enemy at position: " + currentPos); // Debug message
     
-                // Keep trying until we find a valid move
-                while (tries < maxTries && newPos == null) {
-                    int direction = random.nextInt(4); // Randomly pick a direction
+                // Check if hero is within vision range
+                if (hero != null && isWithinRange(enemy.getPosition(), hero.getPosition(), visionRange)) {
+                    newPos = moveTowardsHero(enemy, hero.getPosition());
+                } else {
                     int newRow = currentPos.getRow();
                     int newCol = currentPos.getCol();
-    
-                    // Determine new position based on direction
-                    switch (direction) {
-                        case 0 -> newRow -= 1; // UP
-                        case 1 -> newRow += 1; // DOWN
-                        case 2 -> newCol -= 1; // LEFT
-                        case 3 -> newCol += 1; // RIGHT
-                    }
-    
-                    // Validate new position is within bounds
-                    if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < COLS) {
-                        System.out.println("Checking position (" + newRow + ", " + newCol + ")"); // Debug message
-    
-                        // Check if the hero is at the new position
-                        if ("H".equals(map[newRow][newCol])) {
-                            hero.decreaseHealth(10); // Reduce hero's health
-                            System.out.println("Hero was attacked! Health: " + hero.getHealth());
-                            toRemove.add(enemy); // Minion dies after attacking
-                            newPos = currentPos; // Minion doesn't move after dying
-                        } else if (".".equals(map[newRow][newCol])) {
-                            newPos = Position.createNewPosition(newRow, newCol); // Valid move
+                    // Random movement if hero is not in range
+                    while (tries < maxTries && newPos == null) {
+                        int direction = random.nextInt(4); // Randomly pick a direction
+                        switch (direction) {
+                            case 0 -> newRow -= 1; // UP
+                            case 1 -> newRow += 1; // DOWN
+                            case 2 -> newCol -= 1; // LEFT
+                            case 3 -> newCol += 1; // RIGHT
                         }
-                    }
     
-                    tries++;
+                        // Validate new position is within bounds
+                        if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < COLS) {
+                            System.out.println("Checking position (" + newRow + ", " + newCol + ")"); // Debug message
+    
+                            // Check if the hero is at the new position
+                            if ("H".equals(map[newRow][newCol])) {
+                                hero.decreaseHealth(10); // Reduce hero's health
+                                System.out.println("Hero was attacked! Health: " + hero.getHealth());
+                                toRemove.add(enemy); // Minion dies after attacking
+                                newPos = currentPos; // Minion doesn't move after dying
+                            } else if (".".equals(map[newRow][newCol])) {
+                                newPos = Position.createNewPosition(newRow, newCol); // Valid move
+                            }
+                        }
+    
+                        tries++;
+                    }
                 }
     
                 // If a valid position was found, move the enemy
@@ -693,5 +703,42 @@ public class MapGenerator extends JPanel {
             }
         }
 
-}
+        private boolean isWithinRange(Position pos1, Position pos2, int range) {
+            int rowDiff = Math.abs(pos1.getRow() - pos2.getRow());
+            int colDiff = Math.abs(pos1.getCol() - pos2.getCol());
+            return rowDiff <= range && colDiff <= range;
+        }
+    
+        private Position moveTowardsHero(Minion enemy, Position heroPos) {
+            Position enemyPos = enemy.getPosition();
+            int rowDiff = heroPos.getRow() - enemyPos.getRow();
+            int colDiff = heroPos.getCol() - enemyPos.getCol();
+            
+            // Determine the direction to move
+            int newRow = enemyPos.getRow();
+            int newCol = enemyPos.getCol();
+            
+            if (Math.abs(rowDiff) > Math.abs(colDiff)) {
+                newRow += Integer.compare(rowDiff, 0);
+            } else {
+                newCol += Integer.compare(colDiff, 0);
+            }
+            
+            // Check if the new position is valid
+            if (isValidMove(newRow, newCol)) {
+                return new Position(newRow, newCol);
+            }
+            return null;
+        }
+    
+        private boolean isValidMove(int row, int col) {
+            // Check bounds
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
+                return false;
+            }
+            
+            // Check if the position is walkable (not a wall or other obstacle)
+            return map[row][col].equals(".");
+        }
 
+}

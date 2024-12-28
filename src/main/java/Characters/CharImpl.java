@@ -122,4 +122,18 @@ public class CharImpl implements Character {
         return name + " <" + id + ">";
     }
 
+    @Override
+    public boolean attemptDodge() {
+        double dodge = Math.random();
+        return dodge < stats.getDodgeChance();
+    }
+
+    @Override
+    public int calculateDamage() {
+        int baseDamage = attack();
+        if (Math.random() < stats.getCriticalHitChance()) {
+            return baseDamage * 2; // Critical hits do double damage
+        }
+        return baseDamage;
+    }
 }

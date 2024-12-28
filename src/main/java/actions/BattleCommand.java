@@ -16,23 +16,15 @@ import java.util.Optional;
  * It determines the outcome of the battle based on the hero's and enemy's stats.
  */
 
-
-
 public class BattleCommand extends CommandImpl {
-        /**
-         * Initiates a battle between the hero and the enemy.
-         * @param hero the hero participating in the battle
-         * @param enemy the enemy participating in the battle
-         * @return true if the hero wins, false otherwise
-         */
-    private static final String NO_MINION_AT_POSITION_MESSAGE = "There is no minion to battle here.";
-    static final String NO_PLAYER_AT_POSITION_MESSAGE = "There is no player to battle here.";
-    public static final String HERO_WON_MESSAGE = "The enemy is dead. You won. ";
-    static final String HERO_LOST_MESSAGE = "You died. Enemy wins. ";
-    static final String KILLED_YOU_MESSAGE = " killed you. ";
-    static final String BATTLE_DRAW_MESSAGE = "'s battle with you ended with a draw.";
+    private static final String NO_MINION_AT_POSITION_MESSAGE = "There is no minion to battle here.\n";
+    static final String NO_PLAYER_AT_POSITION_MESSAGE = "There is no player to battle here.\n";
+    public static final String HERO_WON_MESSAGE = "The enemy is dead. You won. \n";
+    static final String HERO_LOST_MESSAGE = "You died. Enemy wins. \n";
+    static final String KILLED_YOU_MESSAGE = " killed you. \n";
+    static final String BATTLE_DRAW_MESSAGE = "'s battle with you ended with a draw.\n";
     public static final String YOU_KILLED_MESSAGE = "You killed ";
-    static final String DRAW_MESSAGE = "Battle ended with a draw.";
+    static final String DRAW_MESSAGE = "Battle ended with a draw.\n";
 
     private static final int MAX_BATTLE_ROUNDS = 10;
 
@@ -54,9 +46,21 @@ public class BattleCommand extends CommandImpl {
         int counter = 0;
         while (hero.isAlive() && enemy.isAlive() && counter <= MAX_BATTLE_ROUNDS) {
             if (isEven(counter)) {
-                enemy.takeDamage(hero.attack());
+                if (!enemy.attemptDodge()) {
+                    int damage = hero.calculateDamage();
+                    enemy.takeDamage(damage);
+                    System.out.println(hero.getName() + " deals " + damage + " damage to " + enemy.getName());
+                } else {
+                    System.out.println(enemy.getName() + " dodged the attack!");
+                }
             } else {
-                hero.takeDamage(enemy.attack());
+                if (!hero.attemptDodge()) {
+                    int damage = enemy.calculateDamage();
+                    hero.takeDamage(damage);
+                    System.out.println(enemy.getName() + " deals " + damage + " damage to " + hero.getName());
+                } else {
+                    System.out.println(hero.getName() + " dodged the attack!");
+                }
             }
 
             counter++;
@@ -72,6 +76,9 @@ public class BattleCommand extends CommandImpl {
 
     public String executeBattleWithMinion() {
         Position heroPosition = hero.getPosition();
+        if (!gameRepository.mapHasMinionAtPosition(heroPosition)) {
+            return NO_MINION_AT_POSITION_MESSAGE;
+        }
         Minion minion = gameRepository.getMinionAtPosition(heroPosition);
         if (minion == null) {
             return NO_MINION_AT_POSITION_MESSAGE;

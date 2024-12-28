@@ -6,7 +6,7 @@ import graphicScenes.MapGenerator;
 
 public class CollectCommand extends CommandImpl {
 
-    private static final String NO_TREASURE_AT_POSITION_MESSAGE = "There is no treasure at this position.";
+    private static final String NO_TREASURE_AT_POSITION_MESSAGE = "There is no treasure at this position.\n";
     private static final String TREASURE_COLLECTED_MESSAGE = "You collected a treasure: ";
     private MapGenerator gameRepository;
 
@@ -27,11 +27,11 @@ public class CollectCommand extends CommandImpl {
             gameRepository.updateTakenTreasureAtPosition(hero.getPosition(), " " + hero.getId() + " ");
             gameRepository.repaint(); // Ensure the map is updated visually
             
-            return TREASURE_COLLECTED_MESSAGE + collectionResult;
+            return TREASURE_COLLECTED_MESSAGE + collectionResult + "\n";
         } catch (Exception e) {
             // Log the exception
             System.err.println("Error in CollectCommand: " + e.getMessage());
-            return "An error occurred while collecting the treasure.";
+            return "An error occurred while collecting the treasure.\n";
         }
     }
 }

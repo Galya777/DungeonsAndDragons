@@ -2,12 +2,14 @@ package graphicScenes;
 
 import Characters.Hero;
 import actions.*;
+import game.GameState;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,14 +38,15 @@ import java.util.Map;
  * - All server communication relies on the input and output streams provided during instantiation.
  * - The panel consumes key events for movement, so it should remain in focus during gameplay.
  */
-public class ActionsPanel extends JPanel {
+public class ActionsPanel extends JPanel implements AutoCloseable {
     private UserRecipient userRecipient;
     private JTextArea outputArea;
     private CommandExecutor commandExecutor;
     private PlayerMoving playerMoving;
     private DataInputStream in;
     private DataOutputStream out;
-    private final SocketChannel socketChannel; // Added as a field for validation.
+    private SocketChannel socketChannel; // Added as a field for validation.
+    private final GameState gameState;
 
     public ActionsPanel(Hero hero, MapGenerator mapGenerator, SocketChannel socketChannel, ByteBuffer bufferSend,
                         DataInputStream in, DataOutputStream out) throws IllegalArgumentException, IOException {
@@ -58,8 +61,10 @@ public class ActionsPanel extends JPanel {
         }
 
         this.socketChannel = socketChannel;
-        this.userRecipient = new UserRecipient(null, null);
+        this.userRecipient = new UserRecipient(socketChannel, "");
         this.commandExecutor = new CommandExecutor(mapGenerator);
+        this.gameState = GameState.getInstance();
+
         this.setLayout(new BorderLayout());
 
         // Initialize components
@@ -83,17 +88,34 @@ public class ActionsPanel extends JPanel {
             CollectCommand collectCommand = new CollectCommand(hero, new String[] {}, mapGenerator);
             String response = collectCommand.execute(userRecipient);
             outputArea.setText(response);
+            outputArea.append(response + "\n");
             requestFocus();
         });
 
 
         giveButton.addActionListener(e -> {
             Map<SocketChannel, Hero> newOne = new HashMap<>();
-            newOne.put(socketChannel, hero);  // Replace the player's socket channel with the current one'
-            GiveCommand giveCommand = new GiveCommand(hero, new String[] {}, newOne);
-            String response = giveCommand.execute(userRecipient);
-            outputArea.setText(response);
-            requestFocus();
+            newOne.put(socketChannel, hero);
+            
+            // First show dialog for treasure name
+            String treasureName = JOptionPane.showInputDialog("Enter the name of the treasure to give:");
+            if (treasureName != null && !treasureName.trim().isEmpty()) {
+                // Check if treasure exists in backpack
+                if (hero.getTreasure(treasureName) != null) {
+                    // Now ask for target player
+                    String targetPlayer = JOptionPane.showInputDialog("Enter target player ID:");
+                    if (targetPlayer != null && !targetPlayer.trim().isEmpty()) {
+                        GiveCommand giveCommand = new GiveCommand(hero, new String[] {"GIVE", treasureName, targetPlayer}, newOne);
+                        String response = giveCommand.execute(userRecipient);
+                        outputArea.setText(response);
+                        outputArea.append(response + "\n");
+                    }
+                } else {
+                    outputArea.setText("That treasure is not in your backpack.");
+                    outputArea.append("That treasure is not in your backpack.\n");
+                }
+            }
+            requestFocus(); // Maintain focus for keyboard input
         });
 
         battleButton.addActionListener(e -> {
@@ -102,6 +124,7 @@ public class ActionsPanel extends JPanel {
             BattleCommand battleCommand = new BattleCommand(hero, new String[] {}, playerRepository, mapGenerator);
             String response = battleCommand.execute(userRecipient);
             outputArea.setText(response);
+            outputArea.append(response + "\n");
             requestFocus();
         });
         // Create panel for buttons
@@ -115,23 +138,17 @@ public class ActionsPanel extends JPanel {
         this.add(buttonPanel, BorderLayout.NORTH);
         this.add(scrollPane, BorderLayout.CENTER);
 
-        try {
-            // Initialize PlayerMoving
-            this.playerMoving = new PlayerMoving(hero, socketChannel, mapGenerator, bufferSend);
+        // Initialize PlayerMoving
+        this.playerMoving = new PlayerMoving(hero, socketChannel, mapGenerator, bufferSend);
 
-            // Add key listener for player movement
-            this.addKeyListener(playerMoving);
-            this.setFocusable(true);  // Ensure the panel can receive key events
+        // Add key listener for player movement
+        this.addKeyListener(playerMoving);
+        this.setFocusable(true);  // Ensure the panel can receive key events
 
-            // Set the input/output streams for serialized communication
-            this.in = in;
-            this.out = out;
+        // Set the input/output streams for serialized communication
+        this.in = in;
+        this.out = out;
 
-        } catch (IOException e) {
-            // Gracefully handle the exception and allow the GUI to still load
-            outputArea.append("Failed to initialize PlayerMoving: " + e.getMessage() + "\n");
-            e.printStackTrace();
-        }
     }
 
     private void openBackpackWindow(Hero hero, MapGenerator mapGenerator) {
@@ -146,7 +163,7 @@ public class ActionsPanel extends JPanel {
 
         JTextField treasureInputField = new JTextField(15);
 
-        checkButton.addActionListener(e -> executeBackpackCommand("CHECK", null,hero, mapGenerator ));
+        checkButton.addActionListener(e -> executeBackpackCommand("CHECK", null, hero, mapGenerator));
         useButton.addActionListener(e -> {
             String treasureName = treasureInputField.getText().trim();
             if (!treasureName.isEmpty()) {
@@ -180,28 +197,21 @@ public class ActionsPanel extends JPanel {
     private void executeCommand(String action) {
         new Thread(() -> {
             try {
-                // Check if socketChannel is still open
-                if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
-                    throw new IOException("Cannot execute command. The connection to the server is closed.");
+                synchronized (out) {
+                    // Send the command to the server
+                    out.writeUTF(action);
+                    out.flush();
                 }
 
-                // Send the command to the server
-                out.writeUTF(action);
-                out.flush();
-
-                // Reading server response
-                if (in.available() > 0) { // Prevent indefinite blocking if no data is available
-                    String response = in.readUTF(); // Read server's response
-                    SwingUtilities.invokeLater(() -> {
-                        if (response != null) {
-                            outputArea.append("Response: " + response + "\n");
-                        } else {
-                            outputArea.append("No response received from server.\n");
-                        }
-                    });
-                } else {
-                    SwingUtilities.invokeLater(() -> outputArea.append("No response received after sending command.\n"));
+                String response;
+                synchronized (in) {
+                    // Reading server response
+                    response = in.readUTF();
                 }
+                 
+                SwingUtilities.invokeLater(() -> {
+                    outputArea.append(response + "\n");
+                });
             } catch (IOException e) {
                 SwingUtilities.invokeLater(() -> outputArea.append("Error executing command: " + action + ". Error: " + e.getMessage() + "\n"));
                 e.printStackTrace();
@@ -211,20 +221,61 @@ public class ActionsPanel extends JPanel {
 
     private void executeBackpackCommand(String action, String treasureName, Hero hero, MapGenerator mapGenerator) {
         new Thread(() -> {
-            try {
-                // Check if socketChannel is still open
-                if (socketChannel == null || !socketChannel.isConnected() || !socketChannel.isOpen()) {
-                    throw new IOException("Cannot execute backpack command. The connection to the server is closed.");
-                }
-
-                BackpackCommand backpackCommand = new BackpackCommand(hero, new String[] {action, treasureName}, mapGenerator);
-                String response = backpackCommand.execute(userRecipient);
-
-                SwingUtilities.invokeLater(() -> outputArea.append("Backpack Response: " + response + "\n"));
-            } catch (IOException e) {
-                SwingUtilities.invokeLater(() -> outputArea.append("Failed to execute backpack command: " + e.getMessage() + "\n"));
-                e.printStackTrace();
+            // Set the command in userRecipient before executing
+            if (treasureName != null) {
+                userRecipient.setMessage(action);
+                userRecipient.updateMessage(" " + treasureName);
+            } else {
+                userRecipient.setMessage(action);
             }
+
+            BackpackCommand backpackCommand = new BackpackCommand(hero, treasureName != null ? new String[] {action.toUpperCase(), treasureName} : new String[] {action.toUpperCase()}, mapGenerator);
+            String response = backpackCommand.execute(userRecipient);
+
+            // Update UI with response
+            SwingUtilities.invokeLater(() -> {
+                if (response != null && !response.isEmpty()) {
+                    outputArea.append("Backpack Response: " + response + "\n");
+                } else {
+                    outputArea.append("No response from backpack command\n");
+                }
+            });
         }).start();
+    }
+
+    private boolean validateConnection() {
+        return socketChannel != null && socketChannel.isConnected() && socketChannel.isOpen();
+    }
+
+    private boolean reconnectToServer() {
+        try {
+            if (socketChannel != null && socketChannel.isOpen()) {
+                socketChannel.close();
+            }
+            socketChannel = SocketChannel.open();
+            socketChannel.connect(new InetSocketAddress("localhost", 8080));
+            return true;
+        } catch (IOException e) {
+            System.err.println("Reconnection failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            if (in != null) {
+                in.close();
+            }
+            if (out != null) {
+                out.flush();
+                out.close();
+            }
+            if (socketChannel != null && socketChannel.isOpen()) {
+                socketChannel.close();
+            }
+        } catch (IOException e) {
+            throw new Exception("Failed to close resources: " + e.getMessage());
+        }
     }
 }

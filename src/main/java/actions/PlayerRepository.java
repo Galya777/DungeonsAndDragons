@@ -74,7 +74,7 @@ public class PlayerRepository {
 
     private boolean isUsernameTaken(String username) {
         Optional<Entry<SocketChannel, Hero>> entryUser = heroBySocketChannel.entrySet().stream()
-                .filter(entry -> entry.getValue().getName().equals(username)).findFirst();
+                .filter(entry -> entry.getValue().getName().equalsIgnoreCase(username)).findFirst();
 
         return entryUser.isPresent();
     }
