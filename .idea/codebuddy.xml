@@ -65,6 +65,6 @@
         <option value="yes, proceed it" />
       </list>
     </option>
-    <option name="selectedModel" value="codebuddy:GPT_4_Omni_Mini_V7" />
+    <option name="selectedModel" value="codebuddy:CLAUDE_3.5_SONNET_V7" />
   </component>
 </project>

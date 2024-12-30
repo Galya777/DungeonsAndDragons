@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>game</OriginalElement>
+  <nodes>
+    <node x="-93.5" y="76.5">game.GameState</node>
+    <node x="-98.0" y="-14.0">game.GameStateListener</node>
+    <node x="-69.0" y="226.0">game.GameState.GameEvent</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="game.GameState.GameEvent" target="game.GameState" relationship="INNER_CLASS">
+      <point x="0.0" y="-14.0" />
+      <point x="0.0" y="43.5" />
+    </edge>
+    <edge source="game.GameState" target="game.GameStateListener" relationship="TO_MANY">
+      <point x="0.0" y="-43.5" />
+      <point x="0.0" y="14.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="1.5" showDependencies="true" x="10.0" y="130.0" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Inner Classes</Category>
+    <Category>Properties</Category>
+  </Categories>
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>protected</VISIBILITY>
+</Diagram>
+

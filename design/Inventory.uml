@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>Inventory</OriginalElement>
+  <nodes>
+    <node x="-89.0" y="306.0">Inventory.HealthPotion</node>
+    <node x="222.5" y="246.0">Inventory.Spell</node>
+    <node x="117.0" y="126.0">Inventory.CombatTreasure</node>
+    <node x="-72.5" y="-14.0">Inventory.Treasure</node>
+    <node x="-64.0" y="126.0">Inventory.Potion</node>
+    <node x="129.5" y="306.0">Inventory.Weapon</node>
+    <node x="15.0" y="246.0">Inventory.ManaPotion</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="Inventory.CombatTreasure" target="Inventory.Treasure" relationship="REALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="206.0" y="100.0" />
+      <point x="-14.0" y="100.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="Inventory.ManaPotion" target="Inventory.Potion" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="86.0" y="220.0" />
+      <point x="-14.0" y="220.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="Inventory.Spell" target="Inventory.CombatTreasure" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="266.0" y="220.0" />
+      <point x="206.0" y="220.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="Inventory.HealthPotion" target="Inventory.Potion" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="Inventory.Weapon" target="Inventory.CombatTreasure" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="186.0" y="220.0" />
+      <point x="206.0" y="220.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="Inventory.Potion" target="Inventory.Treasure" relationship="REALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="1.5" showDependencies="true" x="120.5" y="170.0" />
+  <SelectedNodes />
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>protected</VISIBILITY>
+</Diagram>
+
