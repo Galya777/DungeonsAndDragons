@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>graphicScenes</OriginalElement>
+  <nodes>
+    <node x="-102.5" y="66.0">graphicScenes.StatsGenerator</node>
+    <node x="-99.0" y="-14.0">graphicScenes.MapGenerator</node>
+    <node x="-101.5" y="146.0">graphicScenes.EventLogPanel</node>
+    <node x="-94.5" y="266.0">graphicScenes.ActionsPanel</node>
+    <node x="-101.5" y="346.0">graphicScenes.RegistrationWindow</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="graphicScenes.ActionsPanel" target="graphicScenes.EventLogPanel" relationship="CREATE">
+      <point x="-37.75" y="-14.0" />
+      <point x="-56.75" y="240.0" />
+      <point x="-60.25" y="240.0" />
+      <point x="-41.25" y="14.0" />
+    </edge>
+    <edge source="graphicScenes.ActionsPanel" target="graphicScenes.EventLogPanel" relationship="TO_ONE">
+      <point x="37.75" y="-14.0" />
+      <point x="18.75" y="240.0" />
+      <point x="22.25" y="240.0" />
+      <point x="41.25" y="14.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="1.5" showDependencies="true" x="10.5" y="190.0" />
+  <SelectedNodes />
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>protected</VISIBILITY>
+</Diagram>
+

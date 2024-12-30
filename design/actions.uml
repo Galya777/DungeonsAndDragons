@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>actions</OriginalElement>
+  <nodes>
+    <node x="351.5" y="466.0">actions.MovementListener</node>
+    <node x="146.0" y="346.0">actions.BackpackCommand</node>
+    <node x="276.5" y="286.0">actions.CollectCommand</node>
+    <node x="127.5" y="106.0">actions.CommandImpl</node>
+    <node x="249.5" y="526.0">actions.UserRecipient</node>
+    <node x="143.5" y="-14.0">actions.Command</node>
+    <node x="-79.0" y="346.0">actions.BattleCommand</node>
+    <node x="4.5" y="526.0">actions.CommandType</node>
+    <node x="406.5" y="346.0">actions.GiveCommand</node>
+    <node x="109.5" y="466.0">actions.CommandExecutor</node>
+    <node x="231.0" y="166.0">actions.PlayerMoving</node>
+    <node x="-102.0" y="166.0">actions.PlayerRepository</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="actions.CommandExecutor" target="actions.PlayerRepository" relationship="CREATE">
+      <point x="49.25" y="-14.0" />
+      <point x="257.25" y="440.0" />
+      <point x="248.0" y="440.0" />
+      <point x="248.0" y="400.0" />
+      <point x="128.0" y="400.0" />
+      <point x="128.0" y="240.0" />
+      <point x="28.0" y="240.0" />
+      <point x="28.0" y="220.0" />
+      <point x="33.0" y="220.0" />
+      <point x="45.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandExecutor" target="actions.PlayerRepository" relationship="TO_ONE">
+      <point x="-49.25" y="-14.0" />
+      <point x="158.75" y="440.0" />
+      <point x="-152.0" y="440.0" />
+      <point x="-152.0" y="300.0" />
+      <point x="-52.0" y="300.0" />
+      <point x="-52.0" y="220.0" />
+      <point x="-57.0" y="220.0" />
+      <point x="-45.0" y="14.0" />
+    </edge>
+    <edge source="actions.BattleCommand" target="actions.CommandImpl" relationship="GENERALIZATION">
+      <point x="58.0" y="-14.0" />
+      <point x="66.0" y="260.0" />
+      <point x="208.0" y="260.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.BackpackCommand" target="actions.CommandImpl" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="248.0" y="260.0" />
+      <point x="208.0" y="260.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandExecutor" target="actions.CollectCommand" relationship="CREATE">
+      <point x="49.25" y="-14.0" />
+      <point x="257.25" y="440.0" />
+      <point x="248.0" y="440.0" />
+      <point x="248.0" y="400.0" />
+      <point x="368.0" y="400.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandImpl" target="actions.Command" relationship="REALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandExecutor" target="actions.GiveCommand" relationship="CREATE">
+      <point x="49.25" y="-14.0" />
+      <point x="257.25" y="440.0" />
+      <point x="248.0" y="440.0" />
+      <point x="248.0" y="400.0" />
+      <point x="488.0" y="400.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.BattleCommand" target="actions.PlayerRepository" relationship="TO_ONE">
+      <point x="-58.0" y="-14.0" />
+      <point x="-50.0" y="300.0" />
+      <point x="-52.0" y="300.0" />
+      <point x="-52.0" y="220.0" />
+      <point x="-57.0" y="220.0" />
+      <point x="-45.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandExecutor" target="actions.BackpackCommand" relationship="CREATE">
+      <point x="49.25" y="-14.0" />
+      <point x="257.25" y="440.0" />
+      <point x="248.0" y="440.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.BattleCommand" target="actions.PlayerRepository" relationship="CREATE">
+      <point x="0.0" y="-14.0" />
+      <point x="8.0" y="240.0" />
+      <point x="28.0" y="240.0" />
+      <point x="28.0" y="220.0" />
+      <point x="33.0" y="220.0" />
+      <point x="45.0" y="14.0" />
+    </edge>
+    <edge source="actions.CommandExecutor" target="actions.BattleCommand" relationship="CREATE">
+      <point x="49.25" y="-14.0" />
+      <point x="257.25" y="440.0" />
+      <point x="248.0" y="440.0" />
+      <point x="248.0" y="400.0" />
+      <point x="-112.0" y="400.0" />
+      <point x="-112.0" y="320.0" />
+      <point x="8.0" y="320.0" />
+      <point x="0.0" y="-14.0" />
+    </edge>
+    <edge source="actions.CollectCommand" target="actions.CommandImpl" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="368.0" y="260.0" />
+      <point x="208.0" y="260.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+    <edge source="actions.GiveCommand" target="actions.CommandImpl" relationship="GENERALIZATION">
+      <point x="0.0" y="-14.0" />
+      <point x="488.0" y="260.0" />
+      <point x="208.0" y="260.0" />
+      <point x="0.0" y="14.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="1.5" showDependencies="true" x="219.0" y="280.0" />
+  <SelectedNodes />
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+
