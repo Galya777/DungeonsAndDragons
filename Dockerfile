@@ -9,7 +9,7 @@ COPY .. /app
 
 
 # For now, include any pre-built `.jar` file
-COPY target/DungeonsAndDragons.jar /app/DungeonsAndDragons.jar
+COPY ./target/DungeonsAndDragons.jar /app/DungeonsAndDragons.jar
 
 # Set the working directory inside the container
 WORKDIR /app
