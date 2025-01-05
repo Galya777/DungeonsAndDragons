@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-swing-app
+  name: dungeons-and-dragons
   labels:
-    app: my-swing-app
+    app: dungeons-and-dragons
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: my-swing-app
+      app: dungeons-and-dragons
   template:
     metadata:
       labels:
-        app: my-swing-app
+        app: dungeons-and-dragons
     spec:
       containers:
-        - name: my-swing-app
+        - name: dungeons-and-dragons
           image: galya777/dungeons-and-dragons:latest
           ports:
             - containerPort: 8080
