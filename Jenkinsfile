@@ -7,21 +7,22 @@ pipeline {
     }
 
     environment {
-        APP_NAME = "DungeonsName"
+        APP_NAME = "dungeons-and-dragons"
         VERSION = "1.0.0"
-        BUILD_DIR = "target"
+        DOCKER_CREDENTIALS_ID ='docker-hub-credentialsS'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Galya777/DungeonsAndDragons/'
+                git branch: 'master', url: 'https://github.com/Galya777/DungeonsAndDragons.git'
             }
         }
 
-        stage('Build') {
+        stage('Build and Package') {
             steps {
                 sh 'mvn clean package'
+                archiveArtifacts artifacts: "target/*.jar", fingerprint: true
             }
         }
 
@@ -31,27 +32,53 @@ pipeline {
             }
         }
 
-        stage('Package') {
+        stage('Dockerize') {
             steps {
-                sh 'mvn package'
-                archiveArtifacts artifacts: "${BUILD_DIR}/${APP_NAME}-${VERSION}.jar", fingerprint: true
+                echo 'Building Docker image...'
+                sh "docker build -t ${APP_NAME}:${VERSION} ."
             }
         }
 
-        stage('Deploy') {
+         stage('Push to Registry') {
             steps {
-                echo "Deploying the application..."
-                // Add deployment steps here if needed (e.g., copy JAR to a server or directory)
+                echo 'Pushing Docker image...'
+                withCredentials([usernamePassword(credentialsId:'docker-hub-credentialsS', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    script {
+                        echo "Logging in to Docker..."
+                        sh "docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD"
+                        echo "Tagging Docker image..."
+                        sh "docker tag ${APP_NAME}:${VERSION} galya777/${APP_NAME}:${VERSION}"
+                        echo "Pushing Docker image..."
+                        sh "docker push galya777/${APP_NAME}:${VERSION}"
+                    }
+                }
             }
         }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo 'Deploying to Kubernetes...'
+                withKubeConfig([credentialsId: 'kubeconfig-credentials']) {
+                     sh 'mkdir -p /var/lib/jenkins/.minikube'
+                sh 'minikube start --alsologtostderr -v=0 --profile jenkins'
+                sh 'minikube kubectl config use-context jenkins'
+                    sh 'kubectl apply -f deployment.yaml'
+                    sh 'kubectl apply -f service.yaml'
+                }
+            }
+        }
+
+
+
     }
 
     post {
-        success {
-            echo 'Build and deployment succeeded!'
+        always {
+            echo 'Pipeline finished.'
         }
         failure {
-            echo 'Build or deployment failed.'
+            echo 'Pipeline failed!'
         }
     }
+
 }
