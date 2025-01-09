@@ -31,7 +31,34 @@ pipeline {
                 sh 'mvn test'
             }
         }
+/*
+        stage('Terraform Init') {
+            steps {
+                echo 'Initializing Terraform...'
+                withCredentials([file(credentialsId: 'aws-credentials', variable: 'AWS_CREDS_FILE')]) {
+                    sh '''
+                    mkdir -p ~/.aws
+                    cp $AWS_CREDS_FILE ~/.aws/credentials
+                    terraform init
+                    '''
+                }
+            }
+        }
 
+        stage('Terraform Plan') {
+            steps {
+                echo 'Planning Terraform deployment...'
+                sh 'terraform plan -out=tfplan'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                echo 'Applying Terraform deployment...'
+                sh 'terraform apply -auto-approve tfplan'
+            }
+        }
+*/
         stage('Dockerize') {
             steps {
                 echo 'Building Docker image...'
@@ -65,6 +92,8 @@ pipeline {
                     sh 'kubectl apply -f deployment.yaml'
                     sh 'kubectl apply -f service.yaml'
                     sh 'kubectl get services'
+                     sh 'kubectl get nodes -o wide'
+                     sh 'kubectl get pods'
                 }
             }
         }
