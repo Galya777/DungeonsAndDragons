@@ -32,5 +32,3 @@ The source files for the project can be found in the following directory:
 - Inventory: `/src/main/java/Inventory/`
 - Server: `/src/main/java/server/`
 
-## Documentation Files Location
-The project does not explicitly mention a dedicated documentation directory. However, any relevant documentation may be found within the project root or within comments in the source code files. If further documentation exists, it should be located alongside the source files or in a separate documentation directory not listed in the provided file structure.
